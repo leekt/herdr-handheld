@@ -16,3 +16,5 @@ artifacts/*.zip
 # Private design references and device captures stay local.
 Launcher design scope/
 artifacts/screenshots/
+__pycache__/
+*.py[cod]

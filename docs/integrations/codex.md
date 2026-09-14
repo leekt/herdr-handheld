@@ -12,9 +12,9 @@ The account page has no QR option, token-storage cards, invented account data, o
 
 ## Dedicated conversation
 
-The assistant creates its own named, durable Codex thread (new threads are named "PDX assistant"), scoped to the configured host profile and Herdr session. Subsequent requests resume that exact thread, including after disconnect. It never attaches to an existing Herdr agent's Codex thread. A small recent transcript and the thread reference are encrypted locally; Codex retains the full conversation on the host. The Context page shows recent exchanges. New conversation starts fresh without deleting the previous host conversation.
+The assistant creates its own named, durable Codex thread (new threads are named "PDX assistant"), scoped to the configured host profile and Herdr session. Subsequent requests resume that exact thread, including after disconnect. It never attaches to an existing Herdr agent's Codex thread. A small recent transcript and the thread reference are encrypted locally; Codex retains the full conversation on the host. The Assistant page combines recent exchanges, composer and reviewed proposals. Chats selects earlier conversations or starts a new one without deleting host threads. Local encrypted storage migrates the old single-thread pointer, retaining its backup. Up to 100 conversation entries and 20 recent messages per conversation are retained, with a 48 KiB transcript budget; the host keeps the full thread. Pinned notes are editable per conversation and included in future requests.
 
-Every turn supplies a fresh real agent inventory. Stable opaque aliases map back to full host/session/terminal/pane/agent identity locally. Prior inventory and action proposals are historical; the app never replays them on reconnect. Terminal output is excluded unless included for that request. Requests also include installed application names/identifiers to support app selection. Account credentials and SSH host addresses are not part of the prompt.
+When Herdr is ready and fresh, each request supplies a bounded real inventory (selected, mentioned and blocked agents first, up to 12). Otherwise the request marks Herdr unavailable and supplies no stale agent targets. SSH/Codex can still answer device questions. Stable opaque aliases map back to full host/session/terminal/pane/agent identity locally. Prior inventory and action proposals are historical; the app never replays them on reconnect. Terminal output is excluded unless included for that request. Only installed applications named in the request are included, up to 12. Omitted counts are explicit. Agent inventory and optional output have separate timestamps; selected output is limited to 8,000 characters. Account credentials and SSH host addresses are not part of the prompt.
 
 ## Execution boundary
 
@@ -34,6 +34,12 @@ The app stores no audio recording. Late recognition callbacks are rejected by re
 
 Implementation contract: Codex CLI 0.153.4, generated local JSON Schema and the official [app-server documentation](https://learn.chatgpt.com/docs/app-server) and [authentication documentation](https://learn.chatgpt.com/docs/auth). Device test results are recorded separately in [real connection validation](../validation/real-connection.md). Presence of a microphone/provider is not proof of spoken Korean/English recognition quality.
 
-## Planned context controls
+## Conversation controls
 
-Conversation selection, pinned notes, branching controls, and context-usage/compaction UI remain planned. Persistence of the current conversation is implemented; these additional controls are not. See the [context roadmap](../product/roadmap.md).
+Chats offers explicit branch and confirmed compaction commands. A branch selects a new host thread while retaining the original entry, recent transcript and notes. Compaction resumes the current thread with restricted tools, calls `thread/compact/start`, and waits for its `contextCompaction` item to complete. It keeps local transcript and pinned notes. A rejected/unsupported operation leaves the existing conversation available.
+
+The assistant displays the last turn's token usage and model context window when Codex reports them. This is reported usage, not an inferred percentage of remaining capacity. Stop uses `turn/interrupt` when a turn ID is known, then closes this client's channel. Backgrounding closes the client and does not automatically replay requests.
+
+Wire methods/fields were checked against CLI 0.153.4's generated schema. `thread/resume` uses `excludeTurns` to avoid sending a full historical transcript back through the handheld; it does not accept the experimental `environments` field used by `thread/start` and `turn/start`. Event subscriptions are established before requests and filter thread/turn IDs. Tests exercise notifications arriving before request acknowledgements.
+
+See [v0.4 validation](../validation/pdx-0.4.0.md) for the operations exercised on the actual host and RG Rotate. Older reports remain historical evidence.

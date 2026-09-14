@@ -60,11 +60,17 @@ class RealReadOnlyTest {
             lateinit var model: ConnectionCoordinator
             scenario.onActivity { model=ViewModelProvider(it)[ConnectionCoordinator::class.java];model.home() }
             eventually { model.state.value.loaded && model.state.value.phase==ConnectionPhase.READY && model.state.value.agents.size>=2 }
-            assertFalse("This test requires an already paired real host",model.state.value.demo)
+            assertTrue("This test requires an already paired real host",model.state.value.hasKey)
             val targets=model.state.value.agents.take(2)
             for(target in targets) {
                 scenario.onActivity { model.open(target) }
-                eventually { model.state.value.access==TerminalAccess.OBSERVER && model.state.value.lastFrame>0 }
+                eventually { model.state.value.access==TerminalAccess.NONE && model.state.value.reading.updatedAt>0 }
+                scenario.onActivity { activity ->
+                    fun webViews(view: android.view.View): Int = (if(view is android.webkit.WebView)1 else 0) +
+                        if(view is android.view.ViewGroup)(0 until view.childCount).sumOf { webViews(view.getChildAt(it)) }else 0
+                    assertEquals("READ must not initialize a hidden renderer",0,webViews(activity.window.decorView))
+                }
+                assertEquals(0L,model.state.value.lastFrame)
                 assertEquals(target.ref,model.state.value.selected?.ref)
                 assertEquals(InputMode.NAVIGATION,model.state.value.mode)
             }
@@ -97,7 +103,7 @@ class RealReadOnlyTest {
                 automation.injectInputEvent(KeyEvent(directionStart,SystemClock.uptimeMillis(),action,KeyEvent.KEYCODE_DPAD_UP,0,0,-1,0,0,InputDevice.SOURCE_GAMEPAD),true)
             eventually { model.state.value.readScrollRequest>beforeRequest }
             eventually { model.state.value.recentScroll<afterTouch }
-            assertEquals(TerminalAccess.OBSERVER,model.state.value.access)
+            assertEquals(TerminalAccess.NONE,model.state.value.access)
             assertEquals(InputMode.NAVIGATION,model.state.value.mode)
             assertFalse(model.state.value.hintsVisible)
             button(KeyEvent.KEYCODE_BUTTON_SELECT)
@@ -106,7 +112,7 @@ class RealReadOnlyTest {
             val selectDown=SystemClock.uptimeMillis()
             automation.injectInputEvent(KeyEvent(selectDown,selectDown,KeyEvent.ACTION_DOWN,KeyEvent.KEYCODE_BUTTON_SELECT,0,0,-1,0,0,InputDevice.SOURCE_GAMEPAD),true)
             eventually { model.state.value.hud }
-            assertEquals(TerminalAccess.OBSERVER,model.state.value.access)
+            assertEquals(TerminalAccess.NONE,model.state.value.access)
             automation.injectInputEvent(KeyEvent(selectDown,SystemClock.uptimeMillis(),KeyEvent.ACTION_UP,KeyEvent.KEYCODE_BUTTON_SELECT,0,0,-1,0,0,InputDevice.SOURCE_GAMEPAD),true)
             eventually { !model.state.value.hud }
             assertEquals(Screen.TERMINAL,model.state.value.screen)
@@ -122,7 +128,7 @@ class RealReadOnlyTest {
             eventually { model.state.value.screen==Screen.TERMINAL }
             button(KeyEvent.KEYCODE_BUTTON_A)
             eventually { model.state.value.screen==Screen.CONTROL }
-            assertEquals(TerminalAccess.OBSERVER,model.state.value.access)
+            assertEquals(TerminalAccess.NONE,model.state.value.access)
             button(KeyEvent.KEYCODE_BUTTON_B)
             eventually { model.state.value.screen==Screen.TERMINAL }
             // Tap the transient A/Control hint; this only opens the local confirmation.

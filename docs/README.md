@@ -21,6 +21,7 @@
 
 ## Evidence
 
+- [PDX v0.4.0 conversations and reading](validation/pdx-0.4.0.md)
 - [PDX v0.3.0 upgrade and final device tests](validation/pdx-0.3.0.md)
 
 - [RG Rotate measurements and initial validation](devices/rg-rotate.md)

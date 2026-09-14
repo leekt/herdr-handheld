@@ -21,7 +21,8 @@ import kotlinx.serialization.json.*
 data class UiState(
     val screen: Screen = Screen.HOME,
     val phase: ConnectionPhase = ConnectionPhase.DISCONNECTED,
-    val demo: Boolean = false,
+    val sshPhase: ConnectionPhase = ConnectionPhase.DISCONNECTED,
+    val problem: ProblemCode = ProblemCode.NONE,
     val profile: HostProfile = HostProfile(),
     val agents: List<AgentTarget> = emptyList(),
     val selectedKey: String? = null,
@@ -82,38 +83,43 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
     var voiceCancel: (() -> Unit)?=null
     private var voiceParent=Screen.HOME
     private var connectionJob: Job?=null
-    private var streamJob: Job?=null
-    private var resizeJob: Job?=null
-    private var draftJob: Job?=null
     private var readJob: Job?=null
     private var hintsJob: Job?=null
-    private var stream: TerminalStream?=null
-    private var renderer: TerminalRenderer?=null
+    private val terminalSession=dev.herdr.handheld.terminal.TerminalSession(viewModelScope)
+    private val stream get()=terminalSession.stream
+    private var renderer: TerminalRenderer?
+        get()=terminalSession.renderer
+        set(value) { terminalSession.renderer=value }
     private var visible=false
     private val inputLock=Mutex()
-    private val draftLock=Mutex()
+    private val drafts=DraftStore(viewModelScope,
+        { key -> secrets.get("draft:$key")?.toString(Charsets.UTF_8) },
+        { key,text -> secrets.put("draft:$key",text.toByteArray()) },
+        { key,text -> if(state.value.selected?.ref?.key==key && state.value.draft==text)mutable.update { it.copy(draftSaved=true) } },
+        { message("Draft could not be saved. Keep this screen open and copy your text.",ProblemCode.STORAGE) })
     private var afterAcquire: (() -> Unit)?=null
     private var checkedMonotonic=0L
+    var hudScroll: ((Int)->Unit)?=null
+    var assistantScroll: ((Int)->Unit)?=null
     var menuActions: List<() -> Unit> = emptyList()
     private val modalParents=mutableListOf<Screen>()
-    private val calibrationOrder=listOf(LogicalAction.CONFIRM,LogicalAction.BACK,LogicalAction.ACTIONS,LogicalAction.COMPOSE,
-        LogicalAction.PREVIOUS,LogicalAction.NEXT,LogicalAction.INPUT,LogicalAction.HOME)
+    private val calibrationOrder=ControllerCommands.calibration.map { it.first }
 
     init {
         viewModelScope.launch {
             val profile=settings.profile()
             assistant.binary(settings.codexBinary())
-            mutable.update { it.copy(profile=profile,demo=false,fontSize=settings.fontSize(),
+            mutable.update { it.copy(profile=profile,fontSize=settings.fontSize(),
                 mappings=settings.mappings(),agents=settings.cachedAgents(),lastChecked=settings.cachedAt(),
                 selectedKey=settings.lastTarget(),hasKey=secrets.exists("ssh:${profile.id}"),
                 publicKey=secrets.get("publickey:${profile.id}")?.toString(Charsets.UTF_8).orEmpty(),loaded=true,applicationCursor=settings.applicationCursor(),speechLanguage=settings.speechLanguage()) }
-            assistant.restoreContext()
+            runCatching { assistant.restoreContext() }.onFailure { assistant.notice("Saved conversations could not be read. Existing encrypted data has been retained.") }
             if(visible) connect()
         }
     }
     private fun sync() { mutable.update { it.copy(access=safety.access,mode=safety.mode,acquiring=safety.acquiring,generation=safety.generation) } }
     private fun transition(screen: Screen) { hintsJob?.cancel();if(state.value.screen==Screen.VOICE && screen!=Screen.VOICE)cancelVoice(false);mutable.update { it.copy(screen=screen,hintsVisible=false,inputEpoch=it.inputEpoch+1,menuIndex=0) } }
-    fun message(value: String) { mutable.update { it.copy(message=value) } }
+    fun message(value: String,problem: ProblemCode=ProblemCode.NONE) { mutable.update { it.copy(message=value,problem=problem) } }
     fun setVisible(value: Boolean) {
         if(visible==value) return
         visible=value
@@ -122,7 +128,7 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
             cancelVoice()
             if(state.value.screen==Screen.COMPOSE) saveDraft()
             safety.connection(false);sync();afterAcquire=null
-            mutable.update { it.copy(phase=ConnectionPhase.DISCONNECTED,inputEpoch=it.inputEpoch+1,
+            mutable.update { it.copy(phase=ConnectionPhase.DISCONNECTED,sshPhase=ConnectionPhase.DISCONNECTED,inputEpoch=it.inputEpoch+1,
                 message=if(it.sending)"Delivery unknown. Check the output when you return."else "Paused · reconnects in read mode when you return.",
                 deliveryUncertain=it.deliveryUncertain || it.sending,sending=false) }
             shutdown()
@@ -130,30 +136,56 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
     }
     fun focusLost() { if(state.value.voice.phase in setOf(VoicePhase.STARTING,VoicePhase.LISTENING,VoicePhase.TRANSCRIBING))cancelVoice();if(safety.access==TerminalAccess.CONTROLLER || safety.acquiring) leaveInput("Input closed because the app lost focus.") }
     fun connect() {
-        if(!visible || !state.value.loaded) return
-        shutdown()
-        safety.connection(false);sync()
-        if(!state.value.demo && (state.value.profile.host.isBlank() || state.value.profile.username.isBlank() || !state.value.hasKey)) {
-            mutable.update { it.copy(phase=ConnectionPhase.AUTH_REQUIRED,message="Add your SSH connection and device key in Settings.",inputEpoch=it.inputEpoch+1) }
+        if(!visible || !state.value.loaded)return
+        if(sshTransport!=null && state.value.sshPhase==ConnectionPhase.READY) { startHerdr(sshTransport!!);return }
+        shutdown();safety.connection(false);sync()
+        val profile=state.value.profile
+        if(profile.host.isBlank() || profile.username.isBlank() || !state.value.hasKey) {
+            mutable.update { it.copy(phase=ConnectionPhase.AUTH_REQUIRED,sshPhase=ConnectionPhase.AUTH_REQUIRED,problem=ProblemCode.AUTHENTICATION,message="Add your SSH connection and device key in Settings.",inputEpoch=it.inputEpoch+1) }
             return
         }
-        mutable.update { it.copy(phase=ConnectionPhase.CONNECTING,hostKey=null,message=if(it.demo) "Opening demo…" else "Connecting to SSH…",inputEpoch=it.inputEpoch+1) }
-        sshTransport=if(state.value.demo)null else SshjTransport(secrets)
-        val current=if(state.value.demo) DemoHerdrClient() else SshHerdrClient(state.value.profile,sshTransport!!)
-        client=current
+        mutable.update { it.copy(phase=ConnectionPhase.CONNECTING,sshPhase=ConnectionPhase.CONNECTING,hostKey=null,problem=ProblemCode.NONE,message="Connecting to SSH…",inputEpoch=it.inputEpoch+1) }
+        val transport=SshjTransport(secrets);sshTransport=transport
         connectionJob=viewModelScope.launch {
             try {
-                val capabilities=current.connect()
-                if(client!==current || !visible) return@launch
-                safety.connection(true);sync()
-                mutable.update { it.copy(phase=ConnectionPhase.READY,capabilities=capabilities,message=capabilities.notes) }
-                poll(current)
+                transport.connect(profile)
+                if(sshTransport!==transport || !visible)return@launch
+                mutable.update { it.copy(sshPhase=ConnectionPhase.READY) }
                 if(state.value.screen in setOf(Screen.ASSISTANT,Screen.CODEX,Screen.CONVERSATION))assistant.connect()
-                if(state.value.selected!=null) startStream(false)
-                while(isActive && visible && client===current) { delay(2000);poll(current) }
+                // This job hands ownership to the Herdr poller after SSH authentication succeeds.
+                connectionJob=null;startHerdr(transport)
             } catch(e: Exception) {
-                if(e is CancellationException && e !is TimeoutCancellationException) throw e
-                if(client===current) fail(e)
+                if(e is CancellationException && e !is TimeoutCancellationException)throw e
+                if(sshTransport===transport)fail(e)
+            }
+        }
+    }
+    private fun startHerdr(transport: SshTransport) {
+        connectionJob?.cancel();stopStream();safety.connection(false);sync()
+        val current=SshHerdrClient(state.value.profile,transport,ownsTransport=false);client=current
+        mutable.update { it.copy(phase=ConnectionPhase.CONNECTING,capabilities=null) }
+        connectionJob=viewModelScope.launch {
+            var verified=false
+            while(isActive && visible && client===current) {
+                try {
+                    if(!verified) {
+                        val capabilities=current.connect()
+                        if(client!==current)return@launch
+                        verified=true;safety.connection(true);sync()
+                        mutable.update { it.copy(phase=ConnectionPhase.READY,capabilities=capabilities,problem=ProblemCode.NONE,message=capabilities.notes) }
+                    }
+                    poll(current)
+                    delay(2000)
+                } catch(e: Exception) {
+                    if(e is CancellationException && e !is TimeoutCancellationException)throw e
+                    if(client!==current)return@launch
+                    if(e is HerdrUnavailable || (e is SshFailure && e.stage in setOf(SshStage.COMMAND,SshStage.OUTPUT)) || e is ContractException || e is kotlinx.serialization.SerializationException) {
+                        verified=false;stopStream();safety.connection(false);sync();afterAcquire=null
+                        mutable.update { it.copy(phase=ConnectionPhase.OFFLINE,problem=ProblemCode.HERDR,capabilities=null,
+                            message=if(e is HerdrUnavailable)e.message.orEmpty()else "Herdr response is incompatible. SSH and Codex remain available.",inputEpoch=it.inputEpoch+1) }
+                        delay(5000)
+                    } else { fail(e);return@launch }
+                }
             }
         }
     }
@@ -173,18 +205,20 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
             transition(Screen.HOME)
         }
         mutable.update { it.copy(agents=sorted,lastChecked=now,selectedKey=it.selectedKey?.takeIf { key->fresh.any { a->a.ref.key==key } } ?: sorted.firstOrNull()?.ref?.key) }
-        if(!state.value.demo) settings.cacheAgents(sorted,now)
-        if(state.value.access==TerminalAccess.OBSERVER || state.value.capabilities?.liveTerminal==false) recentOutput()
+        settings.cacheAgents(sorted,now)
+        if(state.value.access!=TerminalAccess.CONTROLLER) recentOutput()
     }
     private fun fail(e: Exception) {
         safety.connection(false);sync();afterAcquire=null
         val ssh=e as? SshFailure
-        mutable.update { it.copy(phase=if(ssh?.stage in setOf("Authentication","Host verification")) ConnectionPhase.AUTH_REQUIRED else ConnectionPhase.OFFLINE,
-            hostKey=ssh?.challenge,message=ssh?.message ?: "Connection interrupted. Reconnect to refresh the target.",inputEpoch=it.inputEpoch+1) }
+        mutable.update { it.copy(phase=if(ssh?.stage in setOf(SshStage.AUTHENTICATION,SshStage.HOST_KEY)) ConnectionPhase.AUTH_REQUIRED else ConnectionPhase.OFFLINE,
+            sshPhase=if(ssh?.stage in setOf(SshStage.AUTHENTICATION,SshStage.HOST_KEY))ConnectionPhase.AUTH_REQUIRED else ConnectionPhase.OFFLINE,problem=if(ssh?.challenge!=null)ProblemCode.HOST_KEY else ProblemCode.CONNECTION,hostKey=ssh?.challenge,message=ssh?.message ?: "Connection interrupted. Reconnect to refresh the target.",inputEpoch=it.inputEpoch+1) }
         shutdown()
     }
     private fun shutdown() {
-        assistant.stop("Assistant disconnected. Reconnect using the account screen.");sshTransport=null
+        assistant.stop("Assistant disconnected. Reconnect using the account screen.")
+        val oldTransport=sshTransport;sshTransport=null
+        if(oldTransport!=null)viewModelScope.launch(Dispatchers.IO) { runCatching { oldTransport.disconnect() } }
         cancelVoice(false)
         connectionJob?.cancel();connectionJob=null
         readJob?.cancel();readJob=null
@@ -194,14 +228,9 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
     }
     fun disconnect() {
         shutdown();safety.connection(false);sync();afterAcquire=null
-        mutable.update { it.copy(phase=ConnectionPhase.DISCONNECTED,message="Disconnected. Remote work continues.",inputEpoch=it.inputEpoch+1) }
+        mutable.update { it.copy(phase=ConnectionPhase.DISCONNECTED,sshPhase=ConnectionPhase.DISCONNECTED,message="Disconnected. Remote work continues.",inputEpoch=it.inputEpoch+1) }
     }
-    private fun stopStream() {
-        streamJob?.cancel();streamJob=null
-        resizeJob?.cancel();resizeJob=null
-        val old=stream;stream=null
-        if(old!=null) viewModelScope.launch(Dispatchers.IO) { runCatching { old.close() } }
-    }
+    private fun stopStream() = terminalSession.close()
     private fun invalidateTarget(ref: TargetRef?) {
         if(state.value.voice.target!=null && state.value.voice.target!=ref)cancelVoice(false)
         readJob?.cancel();readJob=null
@@ -213,114 +242,67 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
     fun open(target: AgentTarget) {
         modalParents.clear()
         invalidateTarget(target.ref)
-        mutable.update { it.copy(selected=target,selectedKey=target.ref.key,message="Read mode · your buttons stay local.",deliveryUncertain=false,draft="",reviewDraft=false) }
+        mutable.update { it.copy(selected=target,selectedKey=target.ref.key,message="Read mode · your buttons stay local.",problem=ProblemCode.NONE,deliveryUncertain=false,draft="",reviewDraft=false) }
         viewModelScope.launch { settings.saveLastTarget(target.ref.key) }
         transition(Screen.TERMINAL)
-        if(state.value.phase==ConnectionPhase.READY) startStream(false)
+        if(state.value.phase==ConnectionPhase.READY) recentOutput()
     }
     fun bindRenderer(value: TerminalRenderer?) {
         renderer=value
-        if(value!=null && state.value.selected!=null && state.value.phase==ConnectionPhase.READY) startStream(false)
+        if(value!=null && safety.acquiring)startController()
     }
-    private fun startStream(control: Boolean) {
+    private fun startController() {
         val target=state.value.selected ?: return
         val current=client ?: return
-        val render=renderer ?: return
+        if(renderer==null)return
         if(state.value.capabilities?.liveTerminal!=true) { recentOutput();return }
         val callback=afterAcquire
-        if(control) { readJob?.cancel();readJob=null }
+        readJob?.cancel();readJob=null
         stopStream()
         val generation=safety.invalidate(target.ref)
-        val ticket=if(control) safety.request() else null
+        val ticket=safety.request()
         afterAcquire=callback
         sync();mutable.update { it.copy(inputEpoch=it.inputEpoch+1,lastFrame=0) }
         val cols=state.value.cols;val rows=state.value.rows
-        streamJob=viewModelScope.launch {
-            var opened: TerminalStream?=null
-            var first=true
-            var lastSeq=-1L
-            var watchdog: Job?=null
-            try {
-                render.reset(generation,state.value.fontSize)
-                if(generation!=safety.generation) return@launch
-                opened=current.terminal(target.ref,control,cols,rows)
-                if(generation!=safety.generation) return@launch
-                stream=opened
-                watchdog=viewModelScope.launch {
-                    delay(7000)
-                    if(first && generation==safety.generation) {
-                        opened.close()
-                    }
+        terminalSession.open(current,target.ref,generation,cols,rows,state.value.fontSize,
+            current={generation==safety.generation && current===client},onFrame={ first ->
+                if(first) {
+                    if(ticket==null || !safety.acquired(ticket))throw CancellationException()
+                    sync();mutable.update { it.copy(inputEpoch=it.inputEpoch+1,problem=ProblemCode.NONE,message="Input mode · target locked. B returns to reading.") }
+                    val next=afterAcquire;afterAcquire=null;next?.invoke()
                 }
-                opened.read { event ->
-                    withContext(Dispatchers.Main) {
-                        if(generation!=safety.generation || current!==client) return@withContext
-                        when(event) {
-                            is TerminalEvent.Frame -> {
-                                if(first && !event.value.full) throw ContractException("Initial terminal frame must be full")
-                                if(event.value.seq<=lastSeq || (!first && !event.value.full && event.value.seq!=lastSeq+1))
-                                    throw ContractException("Terminal frame sequence lost synchronization")
-                                render.render(event.value,generation)
-                                if(generation!=safety.generation) return@withContext
-                                if(first) {
-                                    first=false
-                                    watchdog?.cancel()
-                                    if(control) {
-                                        if(ticket==null || !safety.acquired(ticket)) throw CancellationException()
-                                        sync();mutable.update { it.copy(inputEpoch=it.inputEpoch+1,message="Input mode · target locked. B returns to reading.") }
-                                        val next=afterAcquire;afterAcquire=null;next?.invoke()
-                                    } else { safety.observed(generation);sync();recentOutput() }
-                                }
-                                lastSeq=event.value.seq
-                                mutable.update { it.copy(lastFrame=System.currentTimeMillis()) }
-                            }
-                            is TerminalEvent.Closed -> throw ContractException(event.reason)
-                        }
-                    }
-                }
-            } catch(e: Exception) {
-                if(e is CancellationException && e !is TimeoutCancellationException) throw e
-                if(generation==safety.generation) {
-                    val wasSending=state.value.sending
-                    safety.invalidate(target.ref);sync();afterAcquire=null
-                    mutable.update { it.copy(inputEpoch=it.inputEpoch+1,sending=false,
-                        deliveryUncertain=it.deliveryUncertain || wasSending,
-                        message=if(control && first) "Control unavailable; another client may own it. Reading only."
-                        else "Terminal stream interrupted. Reopen it to refresh; input is disabled.") }
-                    if(control && first && visible) { delay(200);startStream(false) }
-                }
-            } finally { watchdog?.cancel();withContext(NonCancellable+Dispatchers.IO) { runCatching { opened?.close() } } }
-        }
+                mutable.update { it.copy(lastFrame=System.currentTimeMillis()) }
+            },onError={ first ->
+                val wasSending=state.value.sending
+                safety.invalidate(target.ref);sync();afterAcquire=null
+                mutable.update { it.copy(inputEpoch=it.inputEpoch+1,sending=false,deliveryUncertain=it.deliveryUncertain || wasSending,problem=ProblemCode.TERMINAL,
+                    message=if(first)"Control unavailable; another client may own it. Reading only."else "Terminal stream interrupted. Input is disabled.") }
+                recentOutput()
+            })
     }
     fun viewport(cols: Int,rows: Int,generation: Long) {
-        if(generation!=safety.generation || (cols==state.value.cols && rows==state.value.rows)) return
+        if(generation!=safety.generation || (cols==state.value.cols && rows==state.value.rows))return
         mutable.update { it.copy(cols=cols,rows=rows) }
-        resizeJob?.cancel()
-        resizeJob=viewModelScope.launch {
-            delay(180)
-            if(generation!=safety.generation) return@launch
-            if(safety.access==TerminalAccess.CONTROLLER) runCatching { stream?.resize(cols,rows) }.onFailure { leaveInput("Resize failed. Returned to reading.") }
-            else if(!safety.acquiring) startStream(false)
-        }
+        terminalSession.resize(cols,rows,{generation==safety.generation && safety.access==TerminalAccess.CONTROLLER}) { leaveInput("Resize failed. Returned to reading.") }
     }
     fun requestInput() {
         if(state.value.phase!=ConnectionPhase.READY || state.value.capabilities?.control!=true || state.value.selected==null) { message("Connect to a supported Herdr session first.");return }
         if(safety.acquiring) return
         message("Requesting control… B cancels.")
-        startStream(true)
+        if(renderer!=null)startController()else { safety.request();sync() }
     }
     fun leaveInput(note: String="Read mode · control released.") {
         val selected=state.value.selected
         invalidateTarget(selected?.ref)
         mutable.update { it.copy(message=note,sending=false) }
-        if(selected!=null && state.value.phase==ConnectionPhase.READY) startStream(false)
+        if(selected!=null && state.value.phase==ConnectionPhase.READY) recentOutput()
     }
     fun home() {
         cancelVoice(false)
         if(state.value.screen==Screen.COMPOSE) saveDraft()
         invalidateTarget(null)
         modalParents.clear()
-        mutable.update { it.copy(selected=null,reviewDraft=false,calibrating=null,hud=false,message=if(it.demo) "Demo · simulated agents" else "Choose an agent to read its output.") }
+        mutable.update { it.copy(selected=null,reviewDraft=false,calibrating=null,hud=false,message="Choose an agent to read its output.",problem=ProblemCode.NONE) }
         transition(Screen.HOME)
     }
     fun navigate(screen: Screen) {
@@ -350,7 +332,7 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
         val s=state.value
         if(s.hud) { setHud(false);return }
         if(s.screen==Screen.VOICE) { cancelVoice();return }
-        if(s.screen==Screen.ASSISTANT && assistant.state.value.busy)assistant.stop()
+        if(s.screen==Screen.ASSISTANT && assistant.state.value.busy)assistant.cancelTurn()
         if(s.screen==Screen.CODEX && assistant.state.value.login!=null)assistant.stop("Sign-in closed. Reconnect to check account status.")
         if(s.calibrating!=null)mutable.update { it.copy(calibrating=null,inputEpoch=it.inputEpoch+1) }
         when(s.screen) {
@@ -370,15 +352,18 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
         val s=state.value
         if(action==LogicalAction.HOME) { home();return }
         if(action==LogicalAction.BACK) { back();return }
-        if(s.hud)return
+        if(s.hud) { if(action in setOf(LogicalAction.UP,LogicalAction.DOWN))hudScroll?.invoke(if(action==LogicalAction.UP)-100 else 100);return }
         if(action==LogicalAction.INPUT) { showHints();return }
         if(action==LogicalAction.FONT_SMALL || action==LogicalAction.FONT_LARGE) { setFont(s.fontSize+if(action==LogicalAction.FONT_LARGE)1 else -1);return }
         if(action==LogicalAction.SYSTEM) { cancelVoice(false);showSystem();return }
         if(s.screen==Screen.VOICE) { if(action==LogicalAction.CONFIRM)useVoice();return }
+        if(ControllerCommands.forScreen(s.screen,s.mode,s.acquiring,s.reviewDraft).any { it.action==action && !it.enabled })return
         if(s.screen==Screen.ASSISTANT) {
             if(action==LogicalAction.ACTIONS) { navigate(Screen.CONVERSATION);return }
             if(action==LogicalAction.COMPOSE) { assistant.clearAnswer();mutable.update { it.copy(inputEpoch=it.inputEpoch+1) };return }
-            if(assistant.state.value.answer==null) { if(action==LogicalAction.CONFIRM)askAssistant();return }
+            if(action in setOf(LogicalAction.UP,LogicalAction.DOWN)) { assistantScroll?.invoke(if(action==LogicalAction.UP)-120 else 120);return }
+            if(action==LogicalAction.CONFIRM && assistant.state.value.draft.isNotBlank()) { askAssistant();return }
+            if(assistant.state.value.answer==null) return
         }
         if(s.screen in setOf(Screen.ACTIONS,Screen.SETTINGS,Screen.DIAGNOSTICS,Screen.APPS,Screen.SYSTEM,Screen.CONTROL,Screen.ASSISTANT,Screen.CODEX,Screen.CONVERSATION)) {
             when(action) {
@@ -456,7 +441,7 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
         leaveInput("Draft stays on this device until you confirm sending.")
         safety.compose();sync();transition(Screen.COMPOSE)
         viewModelScope.launch {
-            val draft=withContext(Dispatchers.IO) { runCatching { secrets.get("draft:${target.ref.key}")?.toString(Charsets.UTF_8) }.getOrNull() }.orEmpty()
+            val draft=runCatching { drafts.load(target.ref.key) }.getOrElse { message("Saved draft could not be read.",ProblemCode.STORAGE);"" }
             if(state.value.selected?.ref==target.ref && state.value.screen==Screen.COMPOSE)
                 mutable.update { it.copy(draft=prefill ?: draft,draftSaved=prefill==null && draft.isNotEmpty(),reviewDraft=false) }
         }
@@ -466,27 +451,18 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
         if(value.toByteArray().size>24*1024)return
         val target=state.value.selected?.ref ?: return
         mutable.update { it.copy(draft=value,draftSaved=false,reviewDraft=false) }
-        draftJob?.cancel();draftJob=viewModelScope.launch { delay(400);persistDraft(target,value) }
+        drafts.save(target.key,value,debounce=true)
     }
     fun saveDraft() {
         val s=state.value;val target=s.selected ?: return
-        draftJob?.cancel();draftJob=viewModelScope.launch { persistDraft(target.ref,s.draft) }
-    }
-    private suspend fun persistDraft(target: TargetRef,text: String) {
-        try {
-            withContext(Dispatchers.IO) { draftLock.withLock { secrets.put("draft:${target.key}",text.toByteArray()) } }
-            if(state.value.selected?.ref==target && state.value.draft==text) mutable.update { it.copy(draftSaved=true) }
-        } catch(e: Exception) {
-            if(e is CancellationException)throw e
-            message("Draft could not be saved. Keep this screen open and copy your text.")
-        }
+        drafts.save(target.ref.key,s.draft)
     }
     fun reviewDraft() { if(state.value.draft.isNotBlank()) { saveDraft();mutable.update { it.copy(reviewDraft=true,inputEpoch=it.inputEpoch+1) } } }
     fun confirmDraft(submit: Boolean) {
         val s=state.value;val target=s.selected ?: return
         if(!s.reviewDraft || s.draft.isBlank() || s.sending || s.acquiring) return
         val text=s.draft
-        if(text.any { it=='\u001b' || it=='\u0000' || (it<' ' && it!='\n' && it!='\t') }) { message("Remove control characters before sending.");return }
+        if(text.any { it=='\u001b' || it=='\u0000' || (it<' ' && it!='\n' && it!='\t') }) { message("Remove control characters before sending.",ProblemCode.INPUT);return }
         afterAcquire={
             if(state.value.selected?.ref==target.ref && state.value.draft==text && state.value.screen==Screen.COMPOSE) {
                 safety.compose();sync()
@@ -508,27 +484,29 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
     fun openAssistant(prefill: String?=null) {
         if(prefill!=null) { assistant.edit(prefill);assistant.clearAnswer() }
         navigate(Screen.ASSISTANT)
-        if(state.value.phase==ConnectionPhase.READY && !assistant.state.value.connected && !assistant.state.value.busy)assistant.connect()
+        if(state.value.sshPhase==ConnectionPhase.READY && !assistant.state.value.connected && !assistant.state.value.busy)assistant.connect()
     }
     fun askAssistant() {
         val s=state.value
-        if(s.demo || s.phase!=ConnectionPhase.READY || SystemClock.elapsedRealtime()-checkedMonotonic>4000) {
-            assistant.notice("Refresh the real Herdr connection before asking.");return
+        if(s.sshPhase!=ConnectionPhase.READY) {
+            assistant.notice("Connect SSH before asking. Herdr is optional for device questions.");return
         }
         val apps=SystemAccess.apps(getApplication()).associate { it.packageName to it.label }
-        val context=AssistantContext(s.profile,s.agents.toList(),apps,s.selected?.ref,
-            if(assistant.state.value.includeOutput)s.reading.output else null,s.lastChecked)
+        val fresh=s.phase==ConnectionPhase.READY && SystemClock.elapsedRealtime()-checkedMonotonic<=4000
+        val context=AssistantContext(s.profile,if(fresh)s.agents.toList()else emptyList(),apps,s.selected?.ref,
+            if(assistant.state.value.includeOutput)s.reading.output else null,s.lastChecked,s.reading.updatedAt,herdrAvailable=fresh)
+            .bounded(assistant.state.value.draft)
         assistant.includeOutput(false)
         assistant.ask(context)
     }
     fun applyProposal(proposal: AssistantProposal) {
         val context=assistant.state.value.context ?: return
         val s=state.value
-        if(context.profile!=s.profile || s.phase!=ConnectionPhase.READY || !AssistantContract.valid(proposal,context)) {
+        if(context.profile!=s.profile || !AssistantContract.valid(proposal,context)) {
             assistant.notice("Context changed. Ask again before applying an action.");return
         }
         val target=AssistantContract.target(proposal,context)
-        if(target!=null && s.agents.none { it.ref==target.ref }) { assistant.notice("That agent changed or exited. Refresh and ask again.");return }
+        if(target!=null && (s.phase!=ConnectionPhase.READY || SystemClock.elapsedRealtime()-checkedMonotonic>4000 || s.agents.none { it.ref==target.ref })) { assistant.notice("That agent changed or exited. Refresh and ask again.");return }
         when(AssistantAction.valueOf(proposal.action)) {
             AssistantAction.OPEN_AGENT -> open(target!!)
             AssistantAction.DRAFT_MESSAGE -> { open(target!!);openCompose(proposal.text) }
@@ -547,6 +525,7 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
     }
     fun beginVoice() {
         val s=state.value
+        if(s.screen !in setOf(Screen.HOME,Screen.TERMINAL,Screen.COMPOSE,Screen.ASSISTANT,Screen.VOICE))return
         if(s.hostKey!=null || s.calibrating!=null || s.hud || s.acquiring || s.sending)return
         val dictating=s.screen==Screen.COMPOSE || (s.screen==Screen.TERMINAL && s.mode==InputMode.REMOTE_KEYS) || (s.screen==Screen.VOICE && s.voice.target!=null)
         val target=if(dictating)s.selected else null
@@ -597,10 +576,10 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
         readJob=viewModelScope.launch {
             runCatching { current.recent(ref) }.onSuccess { output ->
                 if(g==safety.generation && client===current && state.value.selected?.ref==ref)
-                    mutable.update { it.copy(reading=it.reading.receive(output,System.currentTimeMillis())) }
+                    mutable.update { it.copy(reading=it.reading.receive(output,System.currentTimeMillis()),problem=if(it.problem==ProblemCode.OUTPUT)ProblemCode.NONE else it.problem) }
             }.onFailure {
                 if(it is CancellationException)throw it
-                if(g==safety.generation && client===current) message("Could not refresh output. X opens reconnect actions.")
+                if(g==safety.generation && client===current) message("Could not refresh output. X opens reconnect actions.",ProblemCode.OUTPUT)
             }
         }
     }
@@ -618,7 +597,6 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
             it.copy(recentScroll=position.coerceIn(0,maximum),recentMaxScroll=maximum,reading=it.reading.follow(follow))
         }
     }
-    fun setDemo(value: Boolean) { home();mutable.update { it.copy(demo=value,agents=emptyList(),lastChecked=0,capabilities=null) };viewModelScope.launch { settings.saveDemo(value);connect() } }
     fun saveProfile(profile: HostProfile) {
         val old=state.value.profile
         val changedHost=old.host!=profile.host || old.port!=profile.port || old.username!=profile.username
@@ -690,3 +668,5 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
     }
     fun resetCalibration() { mutable.update { it.copy(mappings=emptyMap(),calibrating=null,inputEpoch=it.inputEpoch+1) };viewModelScope.launch { settings.saveMappings(emptyMap()) } }
 }
+
+enum class ProblemCode { NONE, AUTHENTICATION, HOST_KEY, CONNECTION, HERDR, TERMINAL, OUTPUT, INPUT, STORAGE }

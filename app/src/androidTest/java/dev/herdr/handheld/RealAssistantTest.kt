@@ -67,7 +67,7 @@ class RealAssistantTest {
             compose.waitUntil(210000) { !model.assistant.state.value.busy }
             assertNotNull(model.assistant.state.value.status,model.assistant.state.value.answer)
             assertEquals(thread,model.assistant.state.value.memory.threadId)
-            assertEquals((turns+2).coerceAtMost(10),model.assistant.state.value.memory.messages.size)
+            assertEquals((turns+2).coerceAtMost(20),model.assistant.state.value.memory.messages.size)
             // The first proposal was invalidated when the channel closed; no old proposal replay.
             assertFalse(model.state.value.attentionOnly)
             scenario.onActivity { model.home() }

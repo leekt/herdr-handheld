@@ -1,0 +1,91 @@
+{
+  "provenance": "Property names extracted from codex-cli 0.153.4 generated JSON Schema; no account or conversation data. Runtime exchanges exercised by opt-in real-device tests.",
+  "contracts": {
+    "ThreadResumeParams": {
+      "required": [
+        "threadId"
+      ],
+      "properties": [
+        "approvalPolicy",
+        "approvalsReviewer",
+        "baseInstructions",
+        "config",
+        "cwd",
+        "developerInstructions",
+        "excludeTurns",
+        "model",
+        "modelProvider",
+        "personality",
+        "sandbox",
+        "serviceTier",
+        "threadId"
+      ]
+    },
+    "ThreadForkParams": {
+      "required": [
+        "threadId"
+      ],
+      "properties": [
+        "approvalPolicy",
+        "approvalsReviewer",
+        "baseInstructions",
+        "config",
+        "cwd",
+        "developerInstructions",
+        "ephemeral",
+        "excludeTurns",
+        "lastTurnId",
+        "model",
+        "modelProvider",
+        "sandbox",
+        "serviceTier",
+        "threadId",
+        "threadSource"
+      ]
+    },
+    "ThreadCompactStartParams": {
+      "required": [
+        "threadId"
+      ],
+      "properties": [
+        "threadId"
+      ]
+    },
+    "TurnInterruptParams": {
+      "required": [
+        "threadId",
+        "turnId"
+      ],
+      "properties": [
+        "threadId",
+        "turnId"
+      ]
+    },
+    "AgentMessageDeltaNotification": {
+      "required": [
+        "delta",
+        "itemId",
+        "threadId",
+        "turnId"
+      ],
+      "properties": [
+        "delta",
+        "itemId",
+        "threadId",
+        "turnId"
+      ]
+    },
+    "ThreadTokenUsageUpdatedNotification": {
+      "required": [
+        "threadId",
+        "tokenUsage",
+        "turnId"
+      ],
+      "properties": [
+        "threadId",
+        "tokenUsage",
+        "turnId"
+      ]
+    }
+  }
+}

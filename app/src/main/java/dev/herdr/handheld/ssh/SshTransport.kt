@@ -6,7 +6,8 @@ import java.io.OutputStream
 
 data class ExecResult(val stdout: String, val stderr: String, val exitCode: Int)
 data class HostKeyChallenge(val host: String, val port: Int, val fingerprint: String, val changed: Boolean)
-class SshFailure(val stage: String, val recovery: String, val challenge: HostKeyChallenge? = null) : Exception("$stage: $recovery")
+enum class SshStage(val label: String) { CONNECTION("SSH connection"), AUTHENTICATION("Authentication"), HOST_KEY("Host verification"), COMMAND("Remote command"), OUTPUT("Remote output") }
+class SshFailure(val stage: SshStage, val recovery: String, val challenge: HostKeyChallenge? = null) : Exception("${stage.label}: $recovery")
 
 interface SshChannel {
     val stdout: InputStream

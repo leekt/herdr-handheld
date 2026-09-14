@@ -12,9 +12,20 @@ android {
         applicationId = "dev.herdr.handheld"
         minSdk = 31
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+    // Optional maintainer signing. CI never receives signing material for untrusted PRs.
+    val signingNames=listOf("PDX_SIGNING_STORE", "PDX_SIGNING_STORE_PASSWORD", "PDX_SIGNING_ALIAS", "PDX_SIGNING_KEY_PASSWORD")
+    val signingValues=signingNames.map { providers.environmentVariable(it).orNull }
+    require(signingValues.all { it==null } || signingValues.all { !it.isNullOrBlank() }) { "Provide all PDX_SIGNING_* values or none" }
+    if(signingValues.all { !it.isNullOrBlank() }) {
+        signingConfigs.create("maintainer") {
+            storeFile=file(signingValues[0]!!);storePassword=signingValues[1]
+            keyAlias=signingValues[2];keyPassword=signingValues[3]
+        }
+        buildTypes.getByName("release").signingConfig=signingConfigs.getByName("maintainer")
     }
     buildFeatures { compose = true; buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }

@@ -1,0 +1,134 @@
+{
+  "recorded_at": "2026-09-14T13:45:42.496683+00:00",
+  "app": {
+    "name": "PDX",
+    "expanded_name": "Pocket Dispatch & eXecution",
+    "id": "dev.herdr.handheld",
+    "version": "0.3.0",
+    "version_code": 3,
+    "build": "debug",
+    "apk": "pdx-debug.apk",
+    "sha256": "aa18042d346f5baaf5d7b26741a55e49226dc6bc9d4c1aee837b56064fc34c9a",
+    "bytes": 38217449
+  },
+  "build": "passed",
+  "lint": {
+    "errors": 0,
+    "warnings": 30
+  },
+  "jvm": {
+    "passed": 32,
+    "failures": 0,
+    "suites": [
+      {
+        "name": "dev.herdr.handheld.ssh.DeviceKeyPairTest",
+        "tests": 1
+      },
+      {
+        "name": "dev.herdr.handheld.terminal.ReadingBufferTest",
+        "tests": 2
+      },
+      {
+        "name": "dev.herdr.handheld.herdr.DemoClientTest",
+        "tests": 1
+      },
+      {
+        "name": "dev.herdr.handheld.voice.VoiceSessionTest",
+        "tests": 2
+      },
+      {
+        "name": "dev.herdr.handheld.herdr.HerdrContractTest",
+        "tests": 6
+      },
+      {
+        "name": "dev.herdr.handheld.input.InputSafetyTest",
+        "tests": 5
+      },
+      {
+        "name": "dev.herdr.handheld.assistant.CodexClientTest",
+        "tests": 1
+      },
+      {
+        "name": "dev.herdr.handheld.input.InputRouterTest",
+        "tests": 7
+      },
+      {
+        "name": "dev.herdr.handheld.assistant.AssistantContractTest",
+        "tests": 5
+      },
+      {
+        "name": "dev.herdr.handheld.herdr.RecentOutputTest",
+        "tests": 2
+      }
+    ]
+  },
+  "renderer": {
+    "passed": 3,
+    "failures": 0
+  },
+  "device": {
+    "model": "RG Rotate",
+    "android": 12,
+    "api": 31,
+    "pixels": [
+      720,
+      720
+    ],
+    "density_dpi": 240,
+    "final_instrumentation": {
+      "passed": 3,
+      "seconds": 28.008,
+      "classes": [
+        "RealReadOnlyTest",
+        "RealAssistantTest",
+        "RealVoiceTest"
+      ],
+      "apk_sha256": "aa18042d346f5baaf5d7b26741a55e49226dc6bc9d4c1aee837b56064fc34c9a"
+    },
+    "verified": [
+      "real SSH/Herdr connection and two observers",
+      "default touch and D-pad reading",
+      "Select transient hints, full map, and single-line legends",
+      "actual ChatGPT account and structured assistant proposals",
+      "same dedicated Codex thread resumes after reconnect",
+      "native recognition startup and cancellation",
+      "PDX launcher label and adaptive icon visually inspected in Android app info"
+    ],
+    "upgrade": {
+      "method": "adb install -r",
+      "previous_version": "0.2.0",
+      "same_signing_certificate": true,
+      "unchanged_encrypted_blobs_after_initial_upgrade": 6,
+      "package_component_and_storage_identifiers_preserved": true,
+      "default_home_unchanged": true
+    },
+    "not_sent": [
+      "Herdr task instructions",
+      "terminal Enter/approval/Ctrl+C during these checks",
+      "recognized voice text to Codex or Herdr"
+    ]
+  },
+  "compatibility": {
+    "herdr_cli": "0.9.0",
+    "herdr_server": "0.9.0",
+    "herdr_socket_protocol": 22,
+    "codex_cli": "0.153.4"
+  },
+  "unverified": [
+    "other Android handhelds",
+    "Linux/SteamOS/Windows builds (not implemented)",
+    "spoken Korean/English recognition quality",
+    "physical printed-button calibration",
+    "user-selected agent prompt response",
+    "radio failure during a write",
+    "HOME role selection and restoration",
+    "long-session comfort",
+    "planned conversation picker, pinned memory, branching and compaction UI (not implemented)"
+  ],
+  "publication": {
+    "source_and_apk_private_data_scan": "passed",
+    "original_private_git_history_included": false,
+    "screenshots_and_design_inputs_included": false,
+    "historical_reports_preserved": true
+  }
+}

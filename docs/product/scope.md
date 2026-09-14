@@ -13,7 +13,7 @@ The implementation uses one Android app module, Kotlin/Compose, coroutines/State
 - Modal Actions consume controller navigation locally. Compose releases control, saves a target-specific encrypted draft, and reacquires control only when the reviewed draft is explicitly sent.
 - Late controller acquisition is rejected by a local generation. Target changes, backgrounding, and focus loss invalidate input and clear button presses.
 - Supported Herdr behavior is pinned to a measured 0.9.0 contract. A generic schema-driven protocol adapter is intentionally not introduced.
-- The default READ view is native, wrapping recent output with touch and D-pad scrolling, refreshed through the measured plain-text CLI. It freezes visible content while browsing; Latest resumes following. The ANSI viewport appears when explicitly entering input. Observer reads do not resize the remote PTY; controller acquisition can resize it.
+- The default READ view is native, wrapping recent output with touch and D-pad scrolling, refreshed through the measured plain-text CLI. It freezes visible content while browsing; Latest resumes following. The ANSI viewport appears when explicitly entering input. Default reading creates no observer or WebView; controller acquisition can resize the remote PTY.
 - The user’s `Launcher design scope` references inform the bare Home list, white focus outline, full-screen reader, grey/amber mode edge, modal panels, bundled reference fonts, and transient bottom button hints. See [design decisions](design.md). Every page prioritizes larger content. Select tap reveals hints for three seconds; holding it shows the map. Obvious D-pad/back hints are omitted; errors remain visible.
 
 ## Next-step assistance
@@ -29,7 +29,7 @@ The Codex assistant connects the user's ChatGPT subscription through the existin
 - Every write validates its generation, control access, freshness, current stream, and freshly queried agent identity. These checks are not a server-side atomic identity lock.
 - Input has no offline queue. Busy input is not accumulated. Any possible partial write requires the user to inspect output; no automatic retry occurs.
 - L/R cannot change targets in remote-key mode. Start and B never send remote termination keys. Start tap opens System and releases control; hold returns Home. A in READ opens control confirmation. Select is help-only: tap for transient hints, hold for the map until release.
-- Reconnection refreshes capabilities and targets, then reopens an observer. Controller state is not restored.
+- Reconnection refreshes capabilities and targets, then resumes snapshots. Controller state is not restored.
 - Polls are serial, every two seconds while visible. Transport liveness, last successful list check, and last frame are distinct; a quiet terminal is not assumed disconnected solely because it produces no frames.
 - Native/renderer queues are bounded. The renderer acknowledges one outstanding write, and malformed, oversized, missing-sequence, or stalled output closes the stream for resynchronization. No ANSI byte fragments are dropped.
 

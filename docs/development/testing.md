@@ -18,7 +18,7 @@ python3 scripts/contract_probe.py
 
 The unit tests also cover device-generated Ed25519 key parsing with SSHJ, literal plain-text/JSON-looking recent output, and holding new read output without shifting a paused view. The unit tests cover completed A presses, long presses, duplicate down/up and D-pad/HAT edges, mode-transition leakage, stale acquisition, cross-session identity, agent replacement, disconnected input, bounded NDJSON, arbitrary chunk boundaries, shell quoting, and user text encoded as data. Renderer tests cover UTF-8 splits, Korean/emoji/combining marks, ANSI cursor/clear/color behavior, alternate screens, and OSC handler consumption.
 
-Historical v0.1.0 Android instrumentation exercised demo navigation/read/control/back/home, disabling L/R while controlling, background/resume, Activity recreation, actual Keystore encryption, sequential WebView write acknowledgements, old-generation frame rejection, and external-link isolation. These were injected Android events on physical hardware, not a person pressing the printed buttons. The obsolete demo smoke class is explicitly ignored in current real-mode builds; use the paired-device suites below.
+Historical v0.1.0 Android instrumentation exercised demo navigation/read/control/back/home, disabling L/R while controlling, background/resume, Activity recreation, actual Keystore encryption, sequential WebView write acknowledgements, old-generation frame rejection, and external-link isolation. These were injected Android events on physical hardware, not a person pressing the printed buttons. Production demo branches and the obsolete demo instrumentation class were removed in v0.4; synthetic clients exist only in JVM test sources.
 
 ## Optional Android SSH integration fixture
 
@@ -43,7 +43,7 @@ Stop the fixture with Ctrl+C. Its generated keys are under ignored `.tools/`, in
 
 ## Paired-device read-only validation
 
-Preserve the paired app's key and settings by updating with `adb install -r` and invoking the selected instrumentation directly. Gradle's connected-device test runner may uninstall the app; the demo smoke suite changes the profile mode. Do not use that suite on the paired installation.
+Preserve the paired app's key and settings by updating with `adb install -r` and invoking the selected instrumentation directly. Gradle's connected-device test runner may uninstall the app.
 
 ```sh
 ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest
@@ -55,11 +55,11 @@ adb shell am instrument -w \
   dev.herdr.handheld.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-This opt-in test requires the already paired real host and at least two agents, including recent output long enough to scroll. It sends no terminal input and changes no credentials. It opens real observers, verifies automatic read loading, injects D-pad/touch scrolling and touch-to-D-pad switching, tests Select hold/release and control confirmation, opens System and Settings, verifies single-line hint layouts inside the strip, checks the three-second fade, and taps the transient Control hint. The gesture coordinates target the RG Rotate's measured 720×720 display.
+This opt-in test requires the already paired real host and at least two agents, including recent output long enough to scroll. It sends no terminal input and changes no credentials. It reads real snapshots with no observer or WebView, verifies automatic read loading, injects D-pad/touch scrolling and touch-to-D-pad switching, tests Select hold/release and control confirmation, opens System and Settings, verifies single-line hint layouts inside the strip, checks the three-second fade, and taps the transient Control hint. The gesture coordinates target the RG Rotate's measured 720×720 display.
 
 ## Results and known limits
 
-The latest results are in [PDX v0.3.0 validation](../validation/pdx-0.3.0.md) and `artifacts/validation-summary.json`; [device-validation.md](../devices/rg-rotate.md) preserves the initial v0.1.0 results. Gradle reports are in `app/build/reports/`. Lint dependency-update notices and the unused third-party Bouncy Castle TLS helper warning are distinct from app errors. The app uses SSH host-key verification and does not use that TLS trust manager.
+The latest results are in [PDX v0.4.0 validation](../validation/pdx-0.4.0.md) and `artifacts/validation-summary.json`; [device-validation.md](../devices/rg-rotate.md) preserves the initial v0.1.0 results. Gradle reports are in `app/build/reports/`. Lint dependency-update notices and the unused third-party Bouncy Castle TLS helper warning are distinct from app errors. The app uses SSH host-key verification and does not use that TLS trust manager.
 
 Real SSH authentication, agent listing, observation, controller acquisition/release and cold reconnection are verified on v0.2.0. Not yet claimed: sending task instructions or answering a real agent prompt during verification; physical printed-button calibration; HOME role selection/revocation by the user; long-session fatigue; measured physical-button feedback under 100 ms; all alternate-screen histories; all SSH formats; encrypted-key combinations; other firmware; and nonstandard terminal keyboard protocols.
 
@@ -78,3 +78,12 @@ JVM tests additionally check stable target aliases, rejected unsupported actions
 
 
 The final paired-device run also includes `RealVoiceTest` with `runRealVoice=true`. Approve Android microphone permission when requested; it verifies actual recognition startup and cancellation only, without sending captured speech.
+
+
+## Full current validation
+
+`python3 scripts/check.py` runs fresh JVM contracts, renderer fixtures, lint and APK builds and emits `artifacts/validation-summary.json`. CI uses this same entry point. Synthetic peers test interleaved/out-of-order RPC replies, early notifications, rejected tool requests, structured previews, bounded context, legacy conversation migration, target-specific draft saves and shared SSH ownership.
+
+On the paired device, install both built APKs with `adb install -r`; do not use Gradle's connected runner. The current selected suites are `RealReadOnlyTest`, `ResponsiveLayoutTest`, `RealVoiceTest`, `RendererDeviceTest`, `RealAssistantTest`, `RealConversationTest` and `RealServicesTest`. Pass `-e runRealReadOnly true -e runRealVoice true -e runRealAssistant true` and `-w -r` to `am instrument`. The subscription tests consume actual host Codex turns. `RealConversationTest` branches/compacts a separate assistant thread and restores the original selection. `RealServicesTest` temporarily selects a missing Herdr executable, proves Codex can answer, and restores the original profile in `finally`. No suite sends instructions to existing Herdr agents.
+
+Responsive coverage constrains the real-data app to 320×440dp and 440×280dp on RG Rotate and checks all major pages' hint geometry. It does not certify an additional physical device. Microphone tests exercise listening/cancellation, not speech quality. Device logs remain private; publish sanitized counts and measured limitations.

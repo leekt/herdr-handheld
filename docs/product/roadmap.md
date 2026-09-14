@@ -1,27 +1,27 @@
 # PDX roadmap
 
-The current release is a real Android client for existing Herdr agents and a host-backed Codex assistant. These entries describe remaining work, not implemented features.
+## Implemented in v0.4
 
-## Context management
+- Independent SSH, Herdr and Codex availability.
+- Unified assistant transcript/composer with reviewed actions, encrypted conversation picker, pinned notes, host branching/compaction and reported token usage.
+- Correlated JSON-RPC replies and bounded notifications; streaming answer previews and explicit turn interruption.
+- Default native snapshot reading without a hidden WebView or observer; live controller initialized on explicit input.
+- Shared controller command descriptions, per-target draft storage and a separate terminal-session owner.
+- Reproducible checks, pinned CI actions, generated validation reports and optional maintainer release signing.
 
-1. Replace the single active assistant thread reference with an encrypted conversation index, retaining old conversations when starting a new one.
-2. Add reliable Codex notification routing before exposing context usage, compaction progress, or branching. Check the installed CLI's schema and exercise actual exchanges.
-3. Add editable pinned goals, preferences, and decisions scoped to the appropriate host/project. Store live agent status separately and refresh it before acting.
-4. Add native Conversations and Context screens using the existing large-content layout and Select help. Voice and keyboard share the selected conversation.
-5. Test process restart, reconnect, cross-host isolation, compaction continuity, and rejection of stale target proposals.
+Actual verification is recorded in [v0.4 validation](../validation/pdx-0.4.0.md). Codex is the conversation runtime; Pi is not a dependency. The local transcript limit is not the model context limit.
 
-The ten locally retained messages are a display cache, not the Codex model's context limit. Codex remains the conversation runtime. Pi is not a dependency; an alternative assistant backend would require a separate implemented and tested integration.
+## Next device evidence
 
-## More handhelds
+The first physical target remains RG Rotate. Narrow and wide constrained Android layouts are regression coverage, not certification of a second handheld. Obtain community results from another Android 12+ handheld for button events, density, HOME selection, microphone quality and recovery. Use the [device report template](../devices/report-template.md).
 
-1. Validate a second Android 12+ handheld with the same APK, actual button calibration, and a different screen shape/density.
-2. Address measured layout/input issues and publish device-specific evidence under `docs/devices/`.
-3. Evaluate a native Linux/SteamOS or Windows client when a target device is available. Preserve the SSH, Herdr, input safety, and assistant review contracts. Keep the Android implementation working during that work.
+Evaluate Linux/SteamOS or Windows only with a concrete target device. Keep the Android app working and retain SSH, target identity, controller ownership and reviewed input contracts. Arbitrary game consoles are not promised to run an Android APK.
 
-Broader platform support is an objective, not a promise that arbitrary gaming consoles can install this APK.
+## Remaining product decisions
 
-## Assistant capabilities
+- Measure sustained reading/input latency and battery impact during actual handheld use; startup or layout checks alone cannot establish fatigue or energy improvements.
+- Validate spoken Korean/English dictation quality with the user's selected speech provider.
+- Decide a stable public signing-key custody process before changing from the current maintainer-signed debug update channel to production-signed distribution.
+- Add action capabilities only with exact native contracts and review paths. Arbitrary device control and creating/killing Herdr sessions remain unsupported.
 
-The assistant can propose navigation, message drafts, app/settings access, and local text-size changes. Conversation browsing, durable pinned memory, arbitrary device control, and Herdr session creation/termination are not implemented. Any added action needs an explicit native contract, target validation, and an appropriate review path.
-
-KVM, local inference, background gateways, automatic approval, and replacement orchestration remain outside the current product scope.
+KVM, local inference, background gateways, automatic approval and replacement orchestration remain outside scope.

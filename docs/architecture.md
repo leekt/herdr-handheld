@@ -9,8 +9,8 @@ Android handheld
   ConnectionCoordinator
     ├─ HerdrClient → SshHerdrClient
     │    ├─ real agent inventory / recent output
-    │    └─ selected observe or control stream → terminal renderer
-    └─ AssistantController → CodexClient
+    │    └─ explicit controller → TerminalSession → terminal renderer
+    └─ AssistantController → CodexClient → CodexRpc
          └─ dedicated Codex conversation / reviewed proposals
                     │
               SshTransport (SSHJ)
@@ -56,3 +56,13 @@ An in-place update signed with the same certificate preserves the paired SSH key
 - Device layouts use window constraints, density, and font scale; button labels require actual calibration.
 
 See [product scope](product/scope.md), [device support](devices/README.md), and [integration contracts](README.md).
+
+## v0.4 responsibilities
+
+SSH readiness, Herdr readiness, and assistant readiness are independent. A missing/incompatible Herdr executable or failed Herdr command suspends Herdr input and refreshes while SSH/Codex stay usable. SSH authentication and host-key errors stop the connection. Foreground reconnect never restores a controller or replays input.
+
+Default READ uses bounded text snapshots and native touch/D-pad scrolling. It creates no WebView or terminal bridge. `TerminalSession` owns the single live controller channel, frame sequence validation, rendering and debounced resizing; it is created only for an explicit input request. `DraftStore` independently debounces and serializes encrypted saves per full recipient key. `ConnectionCoordinator` retains lifecycle and input authorization policy.
+
+`ControllerCommands` supplies labels, hints, the complete map, calibration order and availability checks. Legacy persisted `INPUT`/`HOME` mappings still mean Select/Start. Select tap displays hints for three seconds; holding it opens the scrollable map. Hint legends remain one line.
+
+`CodexRpc` owns one bounded NDJSON reader, correlated pending replies, serialized writes and bounded notification subscriptions. Subscribers register before triggering a turn or login, so events that precede replies are retained. Structured answer previews never expose actionable proposals until final validation. Context limits, cancellation, closure and incompatible responses fail without request replay.

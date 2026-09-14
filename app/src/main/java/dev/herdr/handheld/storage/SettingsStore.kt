@@ -22,8 +22,6 @@ class SettingsStore(private val context: Context) {
     suspend fun saveProfile(profile: HostProfile) { context.handheldData.edit { it[stringPreferencesKey("profile")] = json.encodeToString(profile) } }
     suspend fun fontSize() = context.handheldData.data.first()[intPreferencesKey("font")] ?: 17
     suspend fun saveFontSize(size: Int) { context.handheldData.edit { it[intPreferencesKey("font")] = size.coerceIn(12,26) } }
-    suspend fun demo() = context.handheldData.data.first()[booleanPreferencesKey("demo")] ?: false
-    suspend fun saveDemo(value: Boolean) { context.handheldData.edit { it[booleanPreferencesKey("demo")] = value } }
     suspend fun applicationCursor() = context.handheldData.data.first()[booleanPreferencesKey("application_cursor")] ?: false
     suspend fun saveApplicationCursor(value: Boolean) { context.handheldData.edit { it[booleanPreferencesKey("application_cursor")] = value } }
     suspend fun lastTarget() = context.handheldData.data.first()[stringPreferencesKey("last_target")]

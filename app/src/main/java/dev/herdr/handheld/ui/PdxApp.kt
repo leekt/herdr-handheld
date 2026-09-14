@@ -36,6 +36,7 @@ import dev.herdr.handheld.assistant.*
 import dev.herdr.handheld.voice.*
 import dev.herdr.handheld.herdr.*
 import dev.herdr.handheld.input.LogicalAction
+import dev.herdr.handheld.input.ControllerCommands
 import dev.herdr.handheld.launcher.SystemAccess
 import dev.herdr.handheld.terminal.XtermWebView
 import kotlinx.coroutines.Dispatchers
@@ -108,7 +109,7 @@ fun PdxApp(model: ConnectionCoordinator) {
 @Composable private fun ModalSheet(title: String,close: ()->Unit,content: @Composable ()->Unit) {
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.matchParentSize().background(Color.Black.copy(alpha=.72f)).clickable(onClick=close))
-        Surface(Modifier.align(Alignment.Center).padding(horizontal=28.dp,vertical=12.dp).fillMaxWidth().fillMaxHeight(.94f),
+        Surface(Modifier.align(Alignment.Center).padding(horizontal=16.dp,vertical=12.dp).fillMaxWidth().fillMaxHeight(.94f),
             color=Panel,shape=RoundedCornerShape(20.dp),border=BorderStroke(1.dp,Outline),shadowElevation=16.dp) {
             Column(Modifier.padding(12.dp)) {
                 Row(Modifier.fillMaxWidth().padding(start=8.dp),verticalAlignment=Alignment.CenterVertically) {
@@ -150,7 +151,7 @@ fun PdxApp(model: ConnectionCoordinator) {
                 }
             }
         }
-        if(s.phase!=ConnectionPhase.READY && !s.demo) Row(Modifier.align(Alignment.TopCenter).fillMaxWidth().background(Ink).padding(horizontal=24.dp),verticalAlignment=Alignment.CenterVertically) {
+        if(s.phase!=ConnectionPhase.READY) Row(Modifier.align(Alignment.TopCenter).fillMaxWidth().background(Ink).padding(horizontal=24.dp),verticalAlignment=Alignment.CenterVertically) {
             Text("${s.phase.name.lowercase()} · last ${time(s.lastChecked)}",fontSize=11.sp,color=Amber,modifier=Modifier.weight(1f))
             TextButton(onClick=model::connect) { Text("Reconnect",fontSize=12.sp,color=Amber) }
         }
@@ -161,21 +162,21 @@ fun PdxApp(model: ConnectionCoordinator) {
 @Composable private fun TerminalScreen(s: UiState,model: ConnectionCoordinator) {
     val reading=s.mode!=InputMode.REMOTE_KEYS && !s.acquiring
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        AndroidView(factory={ context -> XtermWebView(context,model::viewport) { model.leaveInput(it) }.also { model.bindRenderer(it) } },
+        if(!reading || s.access==TerminalAccess.CONTROLLER) AndroidView(factory={ context -> XtermWebView(context,model::viewport) { model.leaveInput(it) }.also { model.bindRenderer(it) } },
             modifier=Modifier.fillMaxSize().padding(start=5.dp,top=26.dp),onRelease={model.bindRenderer(null);it.destroy()})
         if(reading) key(s.selected?.ref?.key) { ReadingPane(s,model) }
         Box(Modifier.align(Alignment.CenterStart).fillMaxHeight().width(5.dp).background(if(s.mode==InputMode.REMOTE_KEYS)Amber else Color(0xFF4A5464)))
         Row(Modifier.align(Alignment.TopEnd).background(Color.Black.copy(alpha=.9f)).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically) {
             val label=when {
                 s.acquiring->"REQUESTING";s.mode==InputMode.REMOTE_KEYS->"INPUT · ${s.selected?.title}"
-                s.phase!=ConnectionPhase.READY->"READ · cached ${time(s.reading.updatedAt)}"
+                s.phase!=ConnectionPhase.READY || s.problem==ProblemCode.OUTPUT->"READ · cached ${time(s.reading.updatedAt)}"
                 !s.reading.following->"READ · paused";else->"READ · ${s.selected?.title}"
             }
             Text(label,Modifier.widthIn(max=260.dp).clickable { model.setHud(true) }.padding(vertical=7.dp),fontSize=11.sp,
                 color=if(s.mode==InputMode.REMOTE_KEYS || s.phase!=ConnectionPhase.READY)Amber else Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
             if(reading && !s.reading.following) TextButton(onClick=model::resumeReading,contentPadding=PaddingValues(horizontal=10.dp),modifier=Modifier.height(32.dp)) { Text("Latest ↓",fontSize=11.sp,color=Amber) }
         }
-        if(s.deliveryUncertain || s.phase!=ConnectionPhase.READY || s.message.contains("unavailable") || s.message.contains("interrupted") || s.message.contains("Could not"))
+        if(s.deliveryUncertain || s.phase!=ConnectionPhase.READY || s.problem!=ProblemCode.NONE)
             Text(s.message,Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Panel).padding(12.dp,8.dp),fontSize=12.sp,color=Amber,maxLines=3)
     }
 }
@@ -251,7 +252,7 @@ internal data class MenuEntry(val title: String,val detail: String="",val enable
 @Composable private fun ComposeScreen(s: UiState,model: ConnectionCoordinator) {
     Column(Modifier.fillMaxSize().background(Panel).padding(8.dp),verticalArrangement=Arrangement.spacedBy(9.dp)) {
         Text(if(s.reviewDraft) "Review before sending" else "Write to ${s.selected?.ref?.agentKind ?: "agent"}",fontSize=19.sp,fontWeight=FontWeight.SemiBold)
-        Text(if(s.demo) "DEMO / studio / ${s.selected?.title}" else "${s.profile.host} / ${s.profile.session} / ${s.selected?.title}",fontSize=12.sp,color=Amber)
+        Text("${s.profile.host} / ${s.profile.session} / ${s.selected?.title}",fontSize=12.sp,color=Amber)
         if(s.reviewDraft) {
             Text(s.draft,Modifier.weight(1f).fillMaxWidth().background(Panel,RoundedCornerShape(8.dp)).padding(12.dp).verticalScroll(rememberScrollState()),fontSize=17.sp)
             Text(if(s.acquiring) "Requesting control… B cancels." else "A sends text + Enter. No automatic retry.",fontSize=12.sp,color=Muted)
@@ -268,7 +269,7 @@ internal data class MenuEntry(val title: String,val detail: String="",val enable
                 Button(onClick=model::reviewDraft,enabled=s.draft.isNotBlank()) { Text("Review") }
             }
         }
-        if(s.message.contains("unverified") || s.message.contains("control characters")) Text(s.message,fontSize=12.sp,color=Amber)
+        if(s.problem==ProblemCode.INPUT) Text(s.message,fontSize=12.sp,color=Amber)
     }
 }
 
@@ -345,7 +346,7 @@ internal data class MenuEntry(val title: String,val detail: String="",val enable
         MenuEntry("Codex assistant","Subscription connection and voice language",action={model.navigate(Screen.CODEX)}),
         MenuEntry("SSH connection",if(s.profile.host.isBlank())"No host configured"else "${s.profile.username}@${s.profile.host} · ${s.profile.session}",action={panel="connection"}),
         MenuEntry("SSH key",if(s.hasKey)"Encrypted key stored"else "Create a device key or import one",action={panel="key"}),
-        MenuEntry("Connect to host","Reconnect with your saved SSH profile",enabled=s.profile.host.isNotBlank() && s.hasKey,action={model.setDemo(false);model.home()}),
+        MenuEntry("Connect to host","Reconnect with your saved SSH profile",enabled=s.profile.host.isNotBlank() && s.hasKey,action={model.connect();model.home()}),
         MenuEntry("Controller lab","Inspect events and calibrate physical buttons",action={model.navigate(Screen.DIAGNOSTICS)}),
         MenuEntry("Larger terminal text","Current size ${s.fontSize} · maximum 26",action={model.setFont(s.fontSize+1)}),
         MenuEntry("Smaller terminal text","Current size ${s.fontSize} · minimum 12",action={model.setFont(s.fontSize-1)}),
@@ -364,17 +365,14 @@ internal data class MenuEntry(val title: String,val detail: String="",val enable
     val metrics=context.resources.displayMetrics
     val webview=remember { WebView.getCurrentWebViewPackage()?.versionName ?: "Unavailable" }
     val raw=s.diagnostics.take(5).joinToString("\n").ifBlank { "Press a controller button to see its event." }
-    val prompt=s.calibrating?.let { when(it) {
-        LogicalAction.CONFIRM->"Press A · confirm";LogicalAction.BACK->"Press B · back";LogicalAction.ACTIONS->"Press X · actions";LogicalAction.COMPOSE->"Press Y · compose"
-        LogicalAction.PREVIOUS->"Press L1 · previous agent";LogicalAction.NEXT->"Press R1 · next agent";LogicalAction.INPUT->"Press Select · button help";LogicalAction.HOME->"Press Start · app home";else->it.name
-    } }
+    val prompt=s.calibrating?.let { action -> "Press ${ControllerCommands.calibration.firstOrNull { it.first==action }?.second ?: action.name}" }
     val entries=listOf(
         MenuEntry(prompt ?: "Calibrate buttons",if(prompt!=null)"The next physical press is recorded locally."else "Map physical A/B/X/Y, L1/R1, Select/Start",action=model::calibrate),
         MenuEntry("Reset button profile","Restore Android defaults",action=model::resetCalibration),
         MenuEntry("Return home",action=model::home)
     )
     Column(Modifier.fillMaxSize()) {
-        Text("PDX ${dev.herdr.handheld.BuildConfig.VERSION_NAME} · ${Build.MODEL} · Android ${Build.VERSION.RELEASE}\n${metrics.widthPixels} × ${metrics.heightPixels} · ${metrics.densityDpi} dpi · WebView $webview\n${s.capabilities?.notes ?: s.phase.name}",
+        Text("PDX ${dev.herdr.handheld.BuildConfig.VERSION_NAME} · ${Build.MODEL} · Android ${Build.VERSION.RELEASE}\n${metrics.widthPixels} × ${metrics.heightPixels} · ${metrics.densityDpi} dpi · WebView $webview\nSSH ${s.sshPhase.name} · Herdr ${s.phase.name}\n${s.capabilities?.notes.orEmpty()}",
             Modifier.padding(horizontal=16.dp,vertical=9.dp),fontSize=12.sp,color=Muted)
         Text(raw,Modifier.fillMaxWidth().background(Panel).padding(horizontal=16.dp,vertical=9.dp),fontSize=12.sp,lineHeight=17.sp,fontFamily=ReaderFont,color=Green)
         Box(Modifier.weight(1f)) { MenuList(s,model,entries) }
@@ -414,20 +412,20 @@ internal data class MenuEntry(val title: String,val detail: String="",val enable
 }
 
 @Composable private fun HudScreen(s: UiState,model: ConnectionCoordinator) {
+    val scroll=rememberScrollState()
+    val scope=rememberCoroutineScope()
+    SideEffect { model.hudScroll={ delta -> scope.launch { scroll.scrollTo((scroll.value+delta).coerceIn(0,scroll.maxValue)) } } }
+    DisposableEffect(model) { onDispose { model.hudScroll=null } }
     val target=s.selected ?: s.agents.find { it.ref.key==s.selectedKey }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(8.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(8.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
         Text(target?.title ?: "Agent home",fontSize=25.sp,fontWeight=FontWeight.Bold)
         Text("${s.profile.name} / ${s.profile.session}\n${s.phase.name} · ${s.access.name} · ${target?.ref?.paneId ?: "no target"}",fontSize=13.sp,color=Muted,fontFamily=ReaderFont)
         Text("Last checked ${time(s.lastChecked)} · output ${time(s.reading.updatedAt)}",fontSize=12.sp,color=Muted)
-        val remote=s.mode==InputMode.REMOTE_KEYS
-        for((button,meaning) in listOf(
-            "A" to if(remote)"Enter once"else "Open / select · READ: take control", "B" to if(remote)"Exit input"else "Back / close",
-            "D-pad" to if(remote)"Remote arrows"else "Scroll / navigate", "L1 / R1" to if(remote)"Locked during input"else "Previous / next agent",
-            "L2 / R2" to "Smaller / larger text (local)",
-            "X" to "Actions / exact keys", "Y" to "Tap: write · hold: assistant / input dictation", "Select" to "Tap: hints for 3s · hold: full map", "Start" to "Tap: System · hold: Home"
-        )) Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-            KeyPill(button,false)
-            Text(meaning,fontSize=16.sp,modifier=Modifier.weight(1f))
+        for(command in ControllerCommands.forScreen(s.screen,s.mode,s.acquiring,s.reviewDraft)) {
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                KeyPill(command.key,false)
+                Text(command.detail+if(command.enabled)""else " · unavailable here",fontSize=16.sp,color=if(command.enabled)White else Muted,modifier=Modifier.weight(1f))
+            }
         }
         Text("${s.agents.count { it.needsResponse }} need response · ${s.agents.size} agents",fontSize=13.sp,color=Amber)
         Text("Release Select to return. Buttons stay local while the map is open.",fontSize=13.sp,color=Muted)
@@ -443,23 +441,14 @@ internal data class ButtonHint(val key: String,val label: String,val action: Log
 }
 
 @Composable private fun Footer(s: UiState,model: ConnectionCoordinator) {
-    val assistant by model.assistant.state.collectAsStateWithLifecycle()
     val hints=when {
-        s.hostKey!=null->listOf(ButtonHint("Touch","Compare fingerprint · confirm or cancel"))
-        s.calibrating!=null->listOf(ButtonHint("Any","Assign button"),ButtonHint("Touch","Close",LogicalAction.BACK))
-        s.hud->listOf(ButtonHint("Select","Release to close"),ButtonHint("B","Close",LogicalAction.BACK))
-        s.screen==Screen.CONTROL->listOf(ButtonHint("A","Select",LogicalAction.CONFIRM),ButtonHint("Y","Write",LogicalAction.COMPOSE))
-        s.screen==Screen.VOICE -> if(s.voice.phase==VoicePhase.REVIEW) listOf(ButtonHint("A","Use text",LogicalAction.CONFIRM),ButtonHint("Y","Hold: redo")) else listOf(ButtonHint("Y","Release to finish"))
-        s.screen==Screen.ASSISTANT -> listOf(ButtonHint("A",if(assistant.answer!=null)"Choose"else "Ask",LogicalAction.CONFIRM),ButtonHint("Y","Write / hold: mic",LogicalAction.COMPOSE),ButtonHint("X","Context",LogicalAction.ACTIONS))
-        s.screen==Screen.COMPOSE -> listOf(ButtonHint("A",if(s.reviewDraft)"Send + Enter"else "Review",LogicalAction.CONFIRM),ButtonHint("X","Save draft",LogicalAction.ACTIONS))
-        s.screen in setOf(Screen.ACTIONS,Screen.SETTINGS,Screen.DIAGNOSTICS,Screen.APPS,Screen.SYSTEM,Screen.CODEX,Screen.CONVERSATION) -> listOf(ButtonHint("A","Select",LogicalAction.CONFIRM),ButtonHint("Start","System",LogicalAction.SYSTEM))
-        s.screen==Screen.HOME -> listOf(ButtonHint("A","Open",LogicalAction.CONFIRM),ButtonHint("Y","Assistant / hold: mic",LogicalAction.COMPOSE),ButtonHint("Start","System",LogicalAction.SYSTEM))
-        s.acquiring -> listOf(ButtonHint("B","Cancel",LogicalAction.BACK),ButtonHint("Start","System",LogicalAction.SYSTEM))
-        s.mode==InputMode.REMOTE_KEYS -> listOf(ButtonHint("A","Enter",LogicalAction.CONFIRM),ButtonHint("X","Keys",LogicalAction.ACTIONS),ButtonHint("Y","Write / hold: mic",LogicalAction.COMPOSE))
-        else -> listOf(ButtonHint("A","Control",LogicalAction.CONFIRM),ButtonHint("Y","Write / hold: AI",LogicalAction.COMPOSE),ButtonHint("L/R","Agent"))
+        s.hostKey!=null->listOf(ButtonHint("Touch","Compare fingerprint"))
+        s.calibrating!=null->listOf(ButtonHint("Any","Assign button"))
+        s.screen==Screen.VOICE && s.voice.phase!=VoicePhase.REVIEW->listOf(ButtonHint("Y","Release to finish"))
+        else->ControllerCommands.forScreen(s.screen,s.mode,s.acquiring,s.reviewDraft).filter { it.hint && it.enabled }.take(3).map { ButtonHint(it.key,it.label,it.action) }
     }
     val input=s.mode==InputMode.REMOTE_KEYS && !s.hud
-    Row(Modifier.fillMaxWidth().background(Panel).heightIn(min=44.dp).semantics { contentDescription="Controller hints" }.padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically,
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).background(Panel).heightIn(min=44.dp).semantics { contentDescription="Controller hints" }.padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically,
         horizontalArrangement=Arrangement.SpaceBetween) {
         for(hint in hints) Row(Modifier.heightIn(min=44.dp).then(if(hint.action!=null)Modifier.clickable(role=Role.Button) { model.dispatch(hint.action) }else Modifier),
             verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(5.dp)) {

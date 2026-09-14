@@ -18,10 +18,10 @@ See `artifacts/contract-probe.json` and `fixtures/herdr/0.9.0/`. Fixtures are ei
 | Observe | Initial full frame + ANSI frame stream | Default read mode |
 | Two observers | Separate viewport dimensions; no underlying PTY resize | Reading does not acquire resize ownership |
 | Control | First frame follows successful acquisition | No input until first full frame is rendered |
-| Existing controller | `terminal.closed` with owner-conflict reason | Returns to observer; no takeover |
+| Existing controller | `terminal.closed` with owner-conflict reason | Returns to native snapshot reading; no takeover |
 | Input | Text or base64 bytes, never both | Base64 stdin payload |
 | Multiline paste | Exact complete bracketed paste recognized server-side | One paste record, then optional separate Enter |
-| Resize | Positive cols/rows accepted by controller | Debounced; observer size changes reopen observation |
+| Resize | Positive cols/rows accepted by controller | Debounced controller resize; snapshots need no terminal geometry |
 | Scroll | Controller command exists | Observer remote scroll disabled; native recent-output view available |
 | Release / stdin EOF | Detaches connection, underlying pane remains alive | Client never issues pane close/server stop |
 | Keyboard modes in frames | Original modes are not exported | Explicit normal/application arrow profile; no inference from renderer |
@@ -66,3 +66,5 @@ SSHJ 0.40.0 with bundled Bouncy Castle 1.80.2 has been exercised on the RG Rotat
 The original transport fixture and real Herdr CLI probe are separate tests. The subsequent v0.2.0 build has also connected from the RG Rotate over Tailscale to the development host's real SSH account and existing default Herdr session. Live agent listing, observation of two targets, and controller acquisition/release were verified. Sending actual task instructions to existing agents was not part of that verification. See [real connection validation](../validation/real-connection.md).
 
 References: [Herdr CLI](https://herdr.dev/docs/cli-reference/), [terminal bridge](https://herdr.dev/docs/persistence-remote/), [socket schema](https://herdr.dev/docs/socket-api/), [0.9.0 bridge source](https://github.com/herdrdev/herdr/blob/v0.9.0/src/client/terminal_sessions.rs), [SSHJ](https://github.com/hierynomus/sshj), [xterm security](https://xtermjs.org/docs/guides/security/).
+
+In v0.4, the measured observer adapter remains available to contract tests, but the product READ path exclusively uses native text snapshots. The renderer and control bridge start only after an explicit input request. Herdr errors no longer close an otherwise authenticated SSH/Codex connection.

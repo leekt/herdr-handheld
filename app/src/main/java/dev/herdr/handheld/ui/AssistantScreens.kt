@@ -1,6 +1,7 @@
 package dev.herdr.handheld.ui
 
 import androidx.compose.foundation.*
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -19,42 +20,68 @@ import dev.herdr.handheld.voice.*
 
 @Composable internal fun AssistantScreen(s: UiState,model: ConnectionCoordinator) {
     val assistant by model.assistant.state.collectAsStateWithLifecycle()
-    val answer=assistant.answer
-    if(answer!=null) {
-        val context=assistant.context
-        val entries=answer.actions.map { proposal ->
-            val target=context?.let { AssistantContract.target(proposal,it) }
-            MenuEntry(proposal.label,when(proposal.action) {
-                "DRAFT_MESSAGE"->"Prepare message · ${target?.title.orEmpty()}\n${proposal.text}"
-                "OPEN_AGENT"->"Read · ${target?.title.orEmpty()}"
-                else->"Apply this launcher action"
-            },action={model.applyProposal(proposal)})
-        }+MenuEntry("Ask something else",action={model.assistant.clearAnswer()})
-        Column(Modifier.fillMaxSize(),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-            Text("PROPOSED · NOTHING SENT",color=Amber,fontSize=11.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(horizontal=8.dp))
-            MenuList(s,model,entries,answer.answer)
-        }
-        return
+    val scroll=rememberScrollState()
+    val scope=rememberCoroutineScope()
+    LaunchedEffect(assistant.memory.id,assistant.memory.messages.size,assistant.busy) { scroll.scrollTo(scroll.maxValue) }
+    LaunchedEffect(assistant.preview) { if(scroll.maxValue-scroll.value<180)scroll.scrollTo(scroll.maxValue) }
+    var showNotes by remember { mutableStateOf(false) }
+    val proposals=assistant.answer?.actions.orEmpty()
+    val entries=proposals.map { proposal -> { model.applyProposal(proposal) } }
+    SideEffect {
+        model.menuActions=entries
+        model.assistantScroll={ delta -> scope.launch { scroll.scrollTo((scroll.value+delta).coerceIn(0,scroll.maxValue)) } }
     }
-    SideEffect { model.menuActions=emptyList() }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(8.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-        Text(if(assistant.account.subscribed && assistant.connected)"Codex · ${assistant.account.plan} · ${assistant.memory.messages.size/2} recent turns"else "Uses your Codex subscription on the SSH host",color=Muted,fontSize=13.sp)
-        OutlinedTextField(assistant.draft,model.assistant::edit,modifier=Modifier.fillMaxWidth().heightIn(min=96.dp),
-            placeholder={ Text("Ask about your agents or device…",fontSize=18.sp) },textStyle=LocalTextStyle.current.copy(fontSize=19.sp,lineHeight=27.sp),enabled=!assistant.busy)
-        if(s.selected!=null)Row(verticalAlignment=Alignment.CenterVertically) {
-            Checkbox(assistant.includeOutput,{model.assistant.includeOutput(it)},enabled=s.selected!=null && !assistant.busy)
-            Text("Include selected terminal output",fontSize=14.sp)
+    DisposableEffect(model) { onDispose { model.assistantScroll=null } }
+    Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(8.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+            Text(assistant.memory.title,modifier=Modifier.weight(1f),fontSize=15.sp,color=Muted,maxLines=1)
+            TextButton(onClick={model.navigate(Screen.CONVERSATION)}) { Text("Chats") }
+            TextButton(onClick={showNotes=!showNotes}) { Text("Notes") }
         }
-        Text("Sends your request + agent/app inventory.${if(assistant.includeOutput && s.selected!=null)" Includes selected output."else " No terminal output."}",fontSize=12.sp,lineHeight=17.sp,color=Muted)
+        if(showNotes) {
+            OutlinedTextField(assistant.notesDraft,model.assistant::notes,label={Text("Pinned notes")},modifier=Modifier.fillMaxWidth(),enabled=!assistant.busy)
+            Text("Included in future requests in this conversation.",fontSize=12.sp,color=Muted)
+            TextButton(onClick=model.assistant::saveNotes,enabled=!assistant.busy) { Text("Save notes") }
+        }
+        if(assistant.memory.messages.isEmpty())Text("Ask about an agent or your handheld. Suggested actions appear here for review.",fontSize=18.sp,lineHeight=26.sp,color=Muted)
+        assistant.memory.messages.forEach { message ->
+            Column(Modifier.fillMaxWidth().background(if(message.role=="You")FocusPanel else Panel,RoundedCornerShape(12.dp)).padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
+                Text(message.role,fontSize=11.sp,color=Amber)
+                SelectionContainer { Text(message.text,fontSize=18.sp,lineHeight=26.sp) }
+            }
+        }
+        if(assistant.busy) {
+            if(assistant.draft.isNotBlank())Text(assistant.draft,fontSize=17.sp,color=Muted)
+            if(assistant.preview.isNotEmpty())Text(assistant.preview,fontSize=18.sp,lineHeight=26.sp)
+            LinearProgressIndicator(Modifier.fillMaxWidth(),color=White,trackColor=Outline)
+        }
+        if(proposals.isNotEmpty()) {
+            Text("PROPOSED · NOTHING SENT",fontSize=11.sp,color=Amber)
+            proposals.forEachIndexed { index,proposal ->
+                Surface(onClick={model.applyProposal(proposal)},color=if(index==s.menuIndex)FocusPanel else Ink,
+                    border=BorderStroke(1.dp,if(index==s.menuIndex)Amber else Outline),shape=RoundedCornerShape(12.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                        Text(proposal.label,fontSize=17.sp)
+                        if(proposal.action=="DRAFT_MESSAGE")Text(proposal.text,fontSize=14.sp,color=Muted)
+                    }
+                }
+            }
+        }
+        OutlinedTextField(assistant.draft,model.assistant::edit,modifier=Modifier.fillMaxWidth().heightIn(min=90.dp),
+            placeholder={Text("Ask about your agents or device…",fontSize=18.sp)},textStyle=LocalTextStyle.current.copy(fontSize=19.sp,lineHeight=27.sp),enabled=!assistant.busy)
+        if(s.selected!=null)Row(verticalAlignment=Alignment.CenterVertically) {
+            Checkbox(assistant.includeOutput,model.assistant::includeOutput,enabled=!assistant.busy)
+            Text("Include selected output",fontSize=14.sp)
+        }
+        Text("Uses available agents and apps named in your request.${if(assistant.includeOutput)" Includes selected output."else " No terminal output."}",fontSize=12.sp,color=Muted)
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             Button(onClick=model::askAssistant,enabled=assistant.draft.isNotBlank() && !assistant.busy) { Text("Ask") }
             OutlinedButton(onClick=model::beginVoice,enabled=!assistant.busy) { Text("Use mic") }
-            TextButton(onClick={model.navigate(Screen.CONVERSATION)}) { Text("Context") }
+            if(assistant.busy)TextButton(onClick=model.assistant::cancelTurn) { Text("Stop") }
         }
+        Text(assistant.status,fontSize=13.sp,color=Amber)
+        if(assistant.tokens>0)Text("Last turn: ${assistant.tokens} tokens${assistant.contextWindow?.let { " · window $it" }.orEmpty()}",fontSize=12.sp,color=Muted)
         TextButton(onClick={model.navigate(Screen.CODEX)}) { Text("Codex account") }
-        if(assistant.busy)LinearProgressIndicator(Modifier.fillMaxWidth(),color=White,trackColor=Outline)
-        Text(assistant.status,fontSize=13.sp,color=if(assistant.busy)Muted else Amber)
-        if(assistant.busy)TextButton(onClick={model.assistant.stop()}) { Text("Stop") }
     }
 }
 
@@ -126,11 +153,13 @@ private fun CodexAccount.planelse()=plan.ifBlank { "Connected" }
 
 @Composable internal fun ConversationScreen(s: UiState,model: ConnectionCoordinator) {
     val assistant by model.assistant.state.collectAsStateWithLifecycle()
-    val memory=assistant.memory
+    var compactReview by remember { mutableStateOf(false) }
     val entries=listOf(
-        MenuEntry("Continue conversation","${memory.messages.size/2} recent turns on this launcher",action={model.openAssistant()}),
-        MenuEntry("New conversation","Start fresh; the previous conversation remains in Codex on the host",enabled=!assistant.busy,action={model.assistant.newConversation();model.openAssistant()}),
-        MenuEntry("Codex account",assistant.status,action={model.navigate(Screen.CODEX)})
-    )+memory.messages.map { MenuEntry(it.role,it.text,enabled=false,action={}) }
-    MenuList(s,model,entries,if(memory.threadId.isBlank())"Your assistant gets its own Codex conversation with the first request."else "Dedicated Codex conversation · ${memory.threadId.take(8)}. Context survives reconnects. Each request refreshes the agent inventory; actions still need your review.")
+        MenuEntry("New conversation","Earlier chats remain available below",enabled=!assistant.busy,action={model.assistant.newConversation();model.openAssistant()}),
+        MenuEntry("Branch this conversation","Continue from the same context in a separate thread",enabled=!assistant.busy && assistant.memory.threadId.isNotBlank(),action={model.assistant.fork();model.openAssistant()}),
+        MenuEntry(if(compactReview)"Confirm compaction"else "Compact host context",if(compactReview)"Summarize older context on the host. Local history and pinned notes remain."else "Reduce context used by the current conversation",enabled=!assistant.busy && assistant.memory.threadId.isNotBlank(),action={if(compactReview) { model.assistant.compact();compactReview=false }else compactReview=true})
+    )+assistant.conversations.map { entry ->
+        MenuEntry(entry.title,if(entry.id==assistant.memory.id)"Current conversation"else "Open saved conversation",enabled=!assistant.busy,action={model.assistant.selectConversation(entry.id);model.openAssistant()})
+    }
+    MenuList(s,model,entries,assistant.status)
 }

@@ -6,14 +6,14 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.*
 
-class SshHerdrClient(private val profile: HostProfile, private val transport: SshTransport) : HerdrClient {
+class SshHerdrClient(private val profile: HostProfile, private val transport: SshTransport, private val ownsTransport: Boolean=true) : HerdrClient {
     private val builder = HerdrCommandBuilder(profile)
     override suspend fun connect(): Capabilities {
-        transport.connect(profile)
+        if(ownsTransport)transport.connect(profile)
         val version = checked(builder.command("--version")).stdout.trim()
         val status = checked(builder.command("status")).stdout
         val serverVersion = Regex("server:[\\s\\S]*?version: ([^\\s]+)").find(status)?.groupValues?.get(1).orEmpty()
-        if (!status.contains("status: running")) throw SshFailure("Herdr server", "The selected session is not running. Start it yourself on the host.")
+        if (!status.contains("status: running")) throw HerdrUnavailable("The selected Herdr session is not running. SSH and Codex remain available.")
         val help = transport.exec(builder.command("terminal", "session", "--help"))
         val schema = checked(builder.command("api", "schema", "--json")).stdout
         val schemaObject = Json.parseToJsonElement(schema).jsonObject
@@ -32,10 +32,10 @@ class SshHerdrClient(private val profile: HostProfile, private val transport: Ss
         // Even JSON-looking agent output must remain literal terminal content.
         return checked(builder.recent(target)).stdout
     }
-    override suspend fun disconnect() = transport.disconnect()
+    override suspend fun disconnect() { if(ownsTransport)transport.disconnect() }
     private suspend fun checked(command: String): ExecResult {
         val result = transport.exec(command)
-        if(result.exitCode != 0) throw SshFailure("Herdr command", "CLI failed (exit ${result.exitCode}). Check executable path, session, and compatibility.")
+        if(result.exitCode != 0) throw HerdrUnavailable("Herdr CLI failed (exit ${result.exitCode}). Check executable path, session, and compatibility.")
         return result
     }
 }
@@ -79,3 +79,5 @@ private class SshTerminalStream(private val channel: SshChannel, private val con
         channel.close()
     }
 }
+
+class HerdrUnavailable(message: String): Exception(message)

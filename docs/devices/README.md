@@ -4,8 +4,8 @@ PDX aims to support handheld gaming devices. The shipped implementation currentl
 
 | Device/platform | Status | Evidence |
 |---|---|---|
-| ANBERNIC RG Rotate, Android 12 | First tested device; real SSH/Herdr, reading, Codex, and microphone startup exercised | [Measurements](rg-rotate.md), [real connection report](../validation/real-connection.md) |
-| Other Android 12+ handhelds | Candidate devices; not yet validated | Use the report below |
+| ANBERNIC RG Rotate, Android 12 | First tested device; real SSH/Herdr, reading, Codex, and microphone startup exercised | [Measurements](rg-rotate.md), [v0.4 report](../validation/pdx-0.4.0.md) |
+| Other Android 12+ handhelds | Candidate devices; not yet validated | Use the [report template](report-template.md) |
 | Linux / SteamOS / Windows handhelds | Future platform work; Android APK is not a native implementation for these systems | [Roadmap](../product/roadmap.md) |
 | Closed console platforms | No implementation or support claim | Requires a supported distribution and runtime path |
 
@@ -25,3 +25,5 @@ Create `docs/devices/<manufacturer>-<model>.md` and record:
 8. Separate results for automated tests, injected device events, physical button checks, and hands-on comfort. Mark untested items explicitly.
 
 Use the same APK and calibration before adding model-specific code. Never make network settings, private controller identifiers, or device serials part of a committed default profile. The existing coordinate-based read UI test targets RG Rotate; it must be adapted and reported before being used as evidence for another display.
+
+v0.4 also checks real-data layouts at 320×440dp and 440×280dp on RG Rotate. These are constrained Compose canvases, not an emulator or another physical console.

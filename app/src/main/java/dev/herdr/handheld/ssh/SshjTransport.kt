@@ -40,9 +40,11 @@ class SshjTransport(private val secrets: SecretStore, private val testFailure: (
             }
             override fun findExistingAlgorithms(host: String, port: Int): List<String> = emptyList()
         })
+        var stage=SshStage.CONNECTION
         try {
             ssh.connect(profile.host,profile.port)
-            val rawKey = secrets.get("ssh:${profile.id}") ?: throw SshFailure("Authentication", "Import an app-specific SSH private key in Settings.")
+            stage=SshStage.AUTHENTICATION
+            val rawKey = secrets.get("ssh:${profile.id}") ?: throw SshFailure(SshStage.AUTHENTICATION, "Import an app-specific SSH private key in Settings.")
             val passphrase = secrets.get("passphrase:${profile.id}")?.toString(Charsets.UTF_8)?.toCharArray()
             try {
                 val provider = ssh.loadKeys(rawKey.toString(Charsets.UTF_8), null, passphrase?.let { PasswordUtils.createOneOff(it) })
@@ -53,15 +55,15 @@ class SshjTransport(private val secrets: SecretStore, private val testFailure: (
             testFailure?.invoke(failure)
             runCatching { ssh.disconnect() }; client = null
             if (failure is CancellationException) throw failure
-            if (challenge != null) throw SshFailure("Host verification", if (challenge!!.changed) "Host key changed. Verify the server before replacing trust." else "Compare this fingerprint with the server before trusting it.", challenge)
+            if (challenge != null) throw SshFailure(SshStage.HOST_KEY, if (challenge!!.changed) "Host key changed. Verify the server before replacing trust." else "Compare this fingerprint with the server before trusting it.", challenge)
             if (failure is SshFailure) throw failure
-            val auth = failure.javaClass.name.contains("UserAuth") || failure.javaClass.name.contains("Key")
-            throw SshFailure(if (auth) "Authentication" else "SSH connection", (if (auth) "Check username, key format, and passphrase." else "Check address, SSH service, and network; then reconnect.") + " [${failure.javaClass.simpleName}]")
+            val auth = stage==SshStage.AUTHENTICATION
+            throw SshFailure(stage, (if (auth) "Check username, key format, and passphrase." else "Check address, SSH service, and network; then reconnect.") + " [${failure.javaClass.simpleName}]")
         }
     }
 
     override suspend fun exec(command: String): ExecResult = withContext(Dispatchers.IO) {
-        val ssh = client ?: throw SshFailure("SSH connection", "Reconnect to the host.")
+        val ssh = client ?: throw SshFailure(SshStage.CONNECTION, "Reconnect to the host.")
         ssh.startSession().use { session ->
             val process = session.exec(command)
             coroutineScope {
@@ -70,7 +72,7 @@ class SshjTransport(private val secrets: SecretStore, private val testFailure: (
                 try {
                     withTimeout(12000) {
                         process.join(10,TimeUnit.SECONDS)
-                        if (process.isOpen) throw SshFailure("Herdr command", "Command timed out. Check the Herdr installation and session.")
+                        if (process.isOpen) throw SshFailure(SshStage.COMMAND, "Command timed out. Check the Herdr installation and session.")
                         ExecResult(out.await(),err.await(),process.exitStatus ?: -1)
                     }
                 } finally { process.close(); session.close() }
@@ -78,7 +80,7 @@ class SshjTransport(private val secrets: SecretStore, private val testFailure: (
         }
     }
     override suspend fun open(command: String): SshChannel = withContext(Dispatchers.IO) {
-        val session = (client ?: throw SshFailure("SSH connection", "Reconnect to the host.")).startSession()
+        val session = (client ?: throw SshFailure(SshStage.CONNECTION, "Reconnect to the host.")).startSession()
         try { LiveChannel(session,session.exec(command)) } catch (e: Exception) { session.close(); throw e }
     }
     override suspend fun disconnect() = withContext(Dispatchers.IO) {
@@ -96,7 +98,7 @@ class SshjTransport(private val secrets: SecretStore, private val testFailure: (
         val buffer = ByteArray(8192)
         while (true) {
             val count = stream.read(buffer); if (count < 0) break
-            if (out.size() + count > limit) throw SshFailure("Herdr output", "Response exceeded the supported size.")
+            if (out.size() + count > limit) throw SshFailure(SshStage.OUTPUT, "Response exceeded the supported size.")
             out.write(buffer,0,count)
         }
         return out.toString("UTF-8")
