@@ -1,0 +1,18 @@
+.tools/
+.gradle/
+.kotlin/
+local.properties
+**/build/
+**/node_modules/
+.idea/
+*.iml
+.DS_Store
+artifacts/private/
+artifacts/*.apk
+artifacts/*.zip
+*.keystore
+*.jks
+
+# Private design references and device captures stay local.
+Launcher design scope/
+artifacts/screenshots/

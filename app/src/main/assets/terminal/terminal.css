@@ -1,0 +1,6 @@
+@font-face { font-family:"JetBrains Mono"; src:url("jetbrains_mono.ttf") format("truetype"); font-weight:100 800; font-display:block; }
+html,body { width:100vw;height:100vh;margin:0;overflow:hidden;background:#000000; }
+#terminal { position:fixed;inset:0;padding:4px 8px;box-sizing:border-box; }
+.xterm { height:100%; }
+.xterm .xterm-viewport { scrollbar-width:thin; }
+.xterm-helper-textarea { pointer-events:none; }

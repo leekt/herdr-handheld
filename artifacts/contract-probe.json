@@ -1,0 +1,28 @@
+{
+  "cli": "0.9.0",
+  "session": "handheld-contract",
+  "checks": [
+    "two independent observer viewports",
+    "observers do not resize the underlying PTY",
+    "initial full frame",
+    "exclusive controller conflict",
+    "Korean multiline paste plus Enter exact bytes",
+    "resize and scroll accepted",
+    "release leaves pane alive",
+    "stdin EOF leaves pane alive"
+  ],
+  "observer_frame": {
+    "encoding": "ansi",
+    "full": true,
+    "height": 18,
+    "seq": 1,
+    "type": "terminal.frame",
+    "width": 44
+  },
+  "conflict_record": {
+    "reason": "terminal attach failed: terminal term_65b6d3e1c88c33 already has an attached client; retry with --takeover",
+    "type": "terminal.closed"
+  },
+  "source": "installed CLI + isolated synthetic test session",
+  "tested_at": "2026-09-14T17:30:12+0900"
+}

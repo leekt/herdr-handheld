@@ -1,0 +1,146 @@
+{
+  "recorded_at": "2026-09-14T11:48:50.978838+00:00",
+  "app": {
+    "id": "dev.herdr.handheld",
+    "version": "0.2.0",
+    "build": "debug",
+    "apk": "herdr-handheld-debug.apk",
+    "sha256": "fc310be5e230e664d00911f743d5abc2d5bfa011a8d3ac7b92888cd2acec0060",
+    "bytes": 38661000
+  },
+  "build": "passed",
+  "lint": {
+    "errors": 0,
+    "warnings": 29
+  },
+  "jvm": {
+    "passed": 32,
+    "suites": [
+      {
+        "name": "dev.herdr.handheld.assistant.AssistantContractTest",
+        "tests": "5",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "dev.herdr.handheld.assistant.CodexClientTest",
+        "tests": "1",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "dev.herdr.handheld.herdr.DemoClientTest",
+        "tests": "1",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "dev.herdr.handheld.herdr.HerdrContractTest",
+        "tests": "6",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "dev.herdr.handheld.herdr.RecentOutputTest",
+        "tests": "2",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "dev.herdr.handheld.input.InputRouterTest",
+        "tests": "7",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "dev.herdr.handheld.input.InputSafetyTest",
+        "tests": "5",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "dev.herdr.handheld.ssh.DeviceKeyPairTest",
+        "tests": "1",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "dev.herdr.handheld.terminal.ReadingBufferTest",
+        "tests": "2",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "dev.herdr.handheld.voice.VoiceSessionTest",
+        "tests": "2",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      }
+    ]
+  },
+  "renderer": {
+    "passed": 3
+  },
+  "device": {
+    "model": "RG Rotate",
+    "android": 12,
+    "api": 31,
+    "pixels": [
+      720,
+      720
+    ],
+    "density_dpi": 240,
+    "final_instrumentation": {
+      "passed": 3,
+      "seconds": 23.214,
+      "classes": [
+        "RealReadOnlyTest",
+        "RealAssistantTest",
+        "RealVoiceTest"
+      ]
+    },
+    "verified": [
+      "real SSH and Herdr observers",
+      "default touch and D-pad reading",
+      "Select hints fade after three seconds; hold map",
+      "single-line hint geometry",
+      "actual ChatGPT subscription",
+      "dedicated Codex context resumes after connection closes",
+      "native microphone reaches Listening; cancellation rejects late callback"
+    ],
+    "not_sent": [
+      "Herdr task instructions",
+      "terminal Enter/approval/Ctrl+C during this run",
+      "recognized voice text to Codex or Herdr"
+    ]
+  },
+  "compatibility": {
+    "herdr_cli": "0.9.0",
+    "herdr_server": "0.9.0",
+    "herdr_socket_protocol": 22,
+    "codex_cli": "0.153.4"
+  },
+  "unverified": [
+    "spoken Korean/English recognition quality",
+    "physical printed-button calibration",
+    "user-selected agent prompt response",
+    "radio failure during a write",
+    "HOME role selection and restoration",
+    "long-session handheld comfort"
+  ],
+  "publication": {
+    "source_and_apk_private_data_scan": "passed",
+    "original_private_git_history_included": false,
+    "screenshots_and_design_inputs_included": false
+  }
+}

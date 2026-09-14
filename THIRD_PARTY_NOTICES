@@ -1,0 +1,39 @@
+Herdr Handheld — third-party notices
+
+This app is independently written. Herdr, Termux, ConnectBot, or other launcher
+application sources are not incorporated into the app. Herdr is an existing
+external program accessed through its CLI.
+
+Bundled terminal assets:
+  @xterm/xterm 6.0.0 and @xterm/addon-fit 0.11.0
+  MIT License; see licenses/xterm-LICENSE.txt and
+  licenses/xterm-addon-fit-LICENSE.txt.
+
+Android/runtime dependencies:
+  AndroidX Activity, Compose, Material, Lifecycle, DataStore, WebKit and related
+  AndroidX components — Apache License 2.0.
+  Kotlin, Kotlin coroutines and serialization — Apache License 2.0.
+  SSHJ 0.40.0 and ASN.1 library asn-one 0.6.0 — Apache License 2.0.
+  Okio and Guava ListenableFuture — Apache License 2.0.
+  JetBrains annotations — Apache License 2.0.
+  JSpecify — Apache License 2.0 (additional license options may be available).
+  Bouncy Castle bcprov/bcutil 1.80.2 and bcpkix 1.80 — Bouncy Castle license
+  (MIT-style); see licenses/Bouncy-Castle-LICENSE.txt.
+  SLF4J 2.0.17 — MIT License; see licenses/SLF4J-LICENSE.txt.
+
+Full primary license texts are included in licenses/. Exact resolved runtime
+coordinates and POM license metadata are in licenses/dependency-inventory.json
+and app/gradle.lockfile. Build/test-only dependencies (Gradle, Android build
+tools, JUnit, AndroidX Test, @xterm/headless, AsyncSSH test fixture dependencies)
+are governed by their respective licenses and are not all shipped in the APK.
+
+The Gradle wrapper was obtained unchanged from the official Gradle repository.
+Its 8.11.1 wrapper JAR SHA-256 was verified against the official checksum:
+2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046
+
+No external CDN, font service, remote JavaScript, telemetry SDK, or AI SDK is
+loaded by the embedded terminal.
+
+Bundled fonts: Space Grotesk and JetBrains Mono, unchanged Google Fonts files.
+SIL Open Font License 1.1; see licenses/space_grotesk-OFL.txt and
+licenses/jetbrains_mono-OFL.txt. Source commits and file hashes: licenses/fonts.json.

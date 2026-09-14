@@ -1,0 +1,113 @@
+{
+  "id": "cli:agent:list",
+  "result": {
+    "type": "agent_list",
+    "agents": [
+      {
+        "agent": "codex",
+        "agent_session": {
+          "agent": "codex",
+          "kind": "id",
+          "source": "herdr:codex",
+          "value": "agent-review-1"
+        },
+        "agent_status": "blocked",
+        "cwd": "/workspace/example",
+        "focused": false,
+        "foreground_cwd": "/workspace/example",
+        "pane_id": "w1:p1",
+        "revision": 8,
+        "state_change_seq": 153,
+        "tab_id": "w1:t1",
+        "terminal_id": "term_example_1",
+        "terminal_title": "Example task",
+        "terminal_title_stripped": "Example task",
+        "workspace_id": "w1"
+      },
+      {
+        "agent": "codex",
+        "agent_session": {
+          "agent": "codex",
+          "kind": "id",
+          "source": "herdr:codex",
+          "value": "agent-example-2"
+        },
+        "agent_status": "working",
+        "cwd": "/workspace/example",
+        "focused": false,
+        "foreground_cwd": "/workspace/example",
+        "pane_id": "w1:p2",
+        "revision": 8,
+        "state_change_seq": 153,
+        "tab_id": "w1:t1",
+        "terminal_id": "term_example_2",
+        "terminal_title": "Example task",
+        "terminal_title_stripped": "Example task",
+        "workspace_id": "w1"
+      },
+      {
+        "agent": "codex",
+        "agent_session": {
+          "agent": "codex",
+          "kind": "id",
+          "source": "herdr:codex",
+          "value": "agent-example-3"
+        },
+        "agent_status": "idle",
+        "cwd": "/workspace/example",
+        "focused": false,
+        "foreground_cwd": "/workspace/example",
+        "pane_id": "w1:p3",
+        "revision": 8,
+        "state_change_seq": 153,
+        "tab_id": "w1:t1",
+        "terminal_id": "term_example_3",
+        "terminal_title": "Example task",
+        "terminal_title_stripped": "Example task",
+        "workspace_id": "w1"
+      },
+      {
+        "agent": "codex",
+        "agent_session": {
+          "agent": "codex",
+          "kind": "id",
+          "source": "herdr:codex",
+          "value": "agent-example-4"
+        },
+        "agent_status": "done",
+        "cwd": "/workspace/example",
+        "focused": false,
+        "foreground_cwd": "/workspace/example",
+        "pane_id": "w1:p4",
+        "revision": 8,
+        "state_change_seq": 153,
+        "tab_id": "w1:t1",
+        "terminal_id": "term_example_4",
+        "terminal_title": "Example task",
+        "terminal_title_stripped": "Example task",
+        "workspace_id": "w1"
+      },
+      {
+        "agent": "codex",
+        "agent_session": {
+          "agent": "codex",
+          "kind": "id",
+          "source": "herdr:codex",
+          "value": "agent-example-5"
+        },
+        "agent_status": "unknown",
+        "cwd": "/workspace/example",
+        "focused": false,
+        "foreground_cwd": "/workspace/example",
+        "pane_id": "w1:p5",
+        "revision": 8,
+        "state_change_seq": 153,
+        "tab_id": "w1:t1",
+        "terminal_id": "term_example_5",
+        "terminal_title": "Example task",
+        "terminal_title_stripped": "Example task",
+        "workspace_id": "w1"
+      }
+    ]
+  }
+}

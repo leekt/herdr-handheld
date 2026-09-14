@@ -1,0 +1,3 @@
+{"id":1,"result":{"userAgent":"codex-cli/0.153.4","codexHome":"/example/codex","platformFamily":"unix","platformOs":"macos"}}
+{"id":"approval-fixture","method":"item/commandExecution/requestApproval","params":{}}
+{"id":2,"result":{"account":{"type":"chatgpt","email":null,"planType":"unknown"},"requiresOpenaiAuth":true}}
