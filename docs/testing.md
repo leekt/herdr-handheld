@@ -18,7 +18,7 @@ python3 scripts/contract_probe.py
 
 The unit tests also cover device-generated Ed25519 key parsing with SSHJ, literal plain-text/JSON-looking recent output, and holding new read output without shifting a paused view. The unit tests cover completed A presses, long presses, duplicate down/up and D-pad/HAT edges, mode-transition leakage, stale acquisition, cross-session identity, agent replacement, disconnected input, bounded NDJSON, arbitrary chunk boundaries, shell quoting, and user text encoded as data. Renderer tests cover UTF-8 splits, Korean/emoji/combining marks, ANSI cursor/clear/color behavior, alternate screens, and OSC handler consumption.
 
-Android instrumentation exercises demo navigation/read/control/back/home, disabling L/R while controlling, background/resume, Activity recreation, actual Keystore encryption, sequential WebView write acknowledgements, old-generation frame rejection, and external-link isolation. These are injected Android events on physical hardware, not a person pressing the printed buttons.
+Historical v0.1.0 Android instrumentation exercised demo navigation/read/control/back/home, disabling L/R while controlling, background/resume, Activity recreation, actual Keystore encryption, sequential WebView write acknowledgements, old-generation frame rejection, and external-link isolation. These were injected Android events on physical hardware, not a person pressing the printed buttons. The obsolete demo smoke class is explicitly ignored in current real-mode builds; use the paired-device suites below.
 
 ## Optional Android SSH integration fixture
 

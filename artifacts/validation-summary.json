@@ -5,8 +5,8 @@
     "version": "0.2.0",
     "build": "debug",
     "apk": "herdr-handheld-debug.apk",
-    "sha256": "fc310be5e230e664d00911f743d5abc2d5bfa011a8d3ac7b92888cd2acec0060",
-    "bytes": 38661000
+    "sha256": "befccb1e99bd2e5c4c10d4cecbfb362f96185b5a1ce34cc30a185479e04da758",
+    "bytes": 38661236
   },
   "build": "passed",
   "lint": {
@@ -141,6 +141,7 @@
   "publication": {
     "source_and_apk_private_data_scan": "passed",
     "original_private_git_history_included": false,
-    "screenshots_and_design_inputs_included": false
+    "screenshots_and_design_inputs_included": false,
+    "bundled_font_licenses_verified": true
   }
 }

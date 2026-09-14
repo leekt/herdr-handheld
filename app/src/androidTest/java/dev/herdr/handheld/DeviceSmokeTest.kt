@@ -17,6 +17,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
+@org.junit.Ignore("Historical v0.1.0 demo suite. Current real-mode behavior is covered by the opt-in RealReadOnlyTest, RealAssistantTest and RealVoiceTest.")
 class DeviceSmokeTest {
     private fun eventually(check: ()->Boolean) {
         val deadline=SystemClock.uptimeMillis()+10000

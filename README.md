@@ -6,7 +6,7 @@ No Termux, external terminal, Herdr fork, gateway, local agent, or KVM is requir
 
 ## First run
 
-Install `artifacts/herdr-handheld-debug.apk`, or build it below. Open **Herdr Handheld** as a normal app.
+Download the debug APK from this repository's Releases page, or build it below. Open **Herdr Handheld** as a normal app.
 
 1. Use **Settings → Controller lab → Calibrate buttons** to associate the physical buttons with logical actions. The defaults follow Android button codes, not the printed labels.
 2. Configure the SSH connection below. Select a real agent with A to read it. A in READ opens a target confirmation; A then requests control; D-pad sends arrows in input mode; A sends one Enter when released; B returns to reading.

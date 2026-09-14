@@ -33,3 +33,7 @@ Its 8.11.1 wrapper JAR SHA-256 was verified against the official checksum:
 
 No external CDN, font service, remote JavaScript, telemetry SDK, or AI SDK is
 loaded by the embedded terminal.
+
+Bundled fonts: Space Grotesk and JetBrains Mono, unchanged Google Fonts files.
+SIL Open Font License 1.1; see licenses/space_grotesk-OFL.txt and
+licenses/jetbrains_mono-OFL.txt. Source commits and file hashes: licenses/fonts.json.
