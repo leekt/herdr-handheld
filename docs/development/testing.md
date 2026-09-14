@@ -59,7 +59,7 @@ This opt-in test requires the already paired real host and at least two agents, 
 
 ## Results and known limits
 
-The latest results are in [real-connection-validation.md](real-connection-validation.md) and `artifacts/validation-summary.json`; [device-validation.md](device-validation.md) preserves the initial v0.1.0 results. Gradle reports are in `app/build/reports/`. Lint dependency-update notices and the unused third-party Bouncy Castle TLS helper warning are distinct from app errors. The app uses SSH host-key verification and does not use that TLS trust manager.
+The latest results are in [PDX v0.3.0 validation](../validation/pdx-0.3.0.md) and `artifacts/validation-summary.json`; [device-validation.md](../devices/rg-rotate.md) preserves the initial v0.1.0 results. Gradle reports are in `app/build/reports/`. Lint dependency-update notices and the unused third-party Bouncy Castle TLS helper warning are distinct from app errors. The app uses SSH host-key verification and does not use that TLS trust manager.
 
 Real SSH authentication, agent listing, observation, controller acquisition/release and cold reconnection are verified on v0.2.0. Not yet claimed: sending task instructions or answering a real agent prompt during verification; physical printed-button calibration; HOME role selection/revocation by the user; long-session fatigue; measured physical-button feedback under 100 ms; all alternate-screen histories; all SSH formats; encrypted-key combinations; other firmware; and nonstandard terminal keyboard protocols.
 

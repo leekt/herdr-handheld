@@ -25,7 +25,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import dev.herdr.handheld.connection.ConnectionCoordinator
 import dev.herdr.handheld.input.AndroidInputRouter
 import dev.herdr.handheld.herdr.Screen
-import dev.herdr.handheld.ui.HandheldApp
+import dev.herdr.handheld.ui.PdxApp
 
 class MainActivity : ComponentActivity() {
     private val model: ConnectionCoordinator by viewModels()
@@ -77,7 +77,7 @@ class MainActivity : ComponentActivity() {
                     controllerRoot.descendantFocusability=if(browsing)FrameLayout.FOCUS_BLOCK_DESCENDANTS else FrameLayout.FOCUS_AFTER_DESCENDANTS
                     if(browsing)controllerRoot.requestFocus()
                 }
-                HandheldApp(model)
+                PdxApp(model)
             }
         },FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,FrameLayout.LayoutParams.MATCH_PARENT))
         setContentView(controllerRoot)

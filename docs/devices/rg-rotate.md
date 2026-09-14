@@ -1,6 +1,10 @@
-# RG Rotate validation — 2026-09-14
+# ANBERNIC RG Rotate
 
-This report records the initial **v0.1.0** demo/fixture validation. **v0.2.0 is now connected to the real development host Herdr session over Tailscale**; see [the later real-connection report](real-connection-validation.md) for current results. The initial tests below remain historical evidence, with their original scope and limitations.
+This report preserves the initial Herdr Handheld v0.1.0 evidence. Later real-mode checks are in the [real connection report](../validation/real-connection.md) and the current [build evidence](../../artifacts/validation-summary.json). See the [device matrix](README.md) for current support and remaining checks.
+
+## Initial validation — 2026-09-14
+
+This report records the initial **v0.1.0** demo/fixture validation. **v0.2.0 is now connected to the real development host Herdr session over Tailscale**; see [the later real-connection report](../validation/real-connection.md) for current results. The initial tests below remain historical evidence, with their original scope and limitations.
 
 ## Device observed
 

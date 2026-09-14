@@ -8,11 +8,12 @@ android {
     namespace = "dev.herdr.handheld"
     compileSdk = 35
     defaultConfig {
+        // Stable install identity: renaming it would orphan existing profiles and Keystore data.
         applicationId = "dev.herdr.handheld"
         minSdk = 31
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true; buildConfig = true }

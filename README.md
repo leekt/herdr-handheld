@@ -1,17 +1,27 @@
-# Herdr Handheld for RG Rotate
+# PDX
 
-An independent Kotlin Android app for supervising existing Herdr agents with a controller. It includes a native agent home, controller calibration, an embedded offline xterm.js renderer, SSH connection management, encrypted keys and drafts, and an optional Android HOME entry point.
+**Pocket Dispatch & eXecution**
+
+A handheld home for your remote agents. Read real output, move between agents, review a reply, or ask your own assistant using controller buttons, touch, voice, or a keyboard.
+
+PDX is an independent native Kotlin/Compose Android app. It connects to existing Herdr agents over SSH and optionally uses Codex on the same host for its assistant. It includes controller calibration, an embedded offline xterm.js renderer, encrypted keys and drafts, and an optional Android HOME entry point.
+
+**Current support:** Android 12+; ANBERNIC RG Rotate is the first tested device. Other Android handhelds are unverified, and Linux/SteamOS/Windows versions are future work. See the [device matrix](docs/devices/README.md).
+
+PDX continues **Herdr Handheld** starting with v0.3.0. Update the existing installation with the same signing key to retain your connection, keys, drafts, and assistant context. The Android package remains `dev.herdr.handheld` for upgrade compatibility.
+
+[Download](https://github.com/leekt/pdx/releases/latest) · [Documentation](docs/README.md) · [Architecture](docs/architecture.md) · [Roadmap](docs/product/roadmap.md) · [Changelog](CHANGELOG.md)
 
 No Termux, external terminal, Herdr fork, gateway, local agent, or KVM is required. The app starts with real connection setup and does not change your default launcher. The shipping UI displays real data only; synthetic clients are retained for isolated tests.
 
 ## First run
 
-Download the debug APK from this repository's Releases page, or build it below. Open **Herdr Handheld** as a normal app.
+Download the debug APK from this repository's Releases page, or build it below. Open **PDX** as a normal app.
 
 1. Use **Settings → Controller lab → Calibrate buttons** to associate the physical buttons with logical actions. The defaults follow Android button codes, not the printed labels.
 2. Configure the SSH connection below. Select a real agent with A to read it. A in READ opens a target confirmation; A then requests control; D-pad sends arrows in input mode; A sends one Enter when released; B returns to reading.
 3. Use L1/R1 to change agents in read mode. X opens Actions, Y opens the native editor, Start opens System, and holding Start returns to the app home. Hold Select to see the button map.
-4. **Y on Home** opens the Codex assistant. Connect your subscription in **Settings → Codex assistant**. It has its own persistent conversation and proposes actions for review. Hold Y to speak; inside INPUT, holding Y dictates a message for the current agent. See [assistant setup and limits](docs/codex-assistant.md).
+4. **Y on Home** opens the Codex assistant. Use your host's existing Codex sign-in from **Settings → Codex assistant**. It has its own persistent conversation and proposes actions for review. Hold Y to speak; inside INPUT, holding Y dictates a message for the current agent. See [assistant setup and limits](docs/integrations/codex.md).
 
 | Input | Home / read | Input mode |
 |---|---|---|
@@ -29,7 +39,7 @@ OS Home and Back retain their Android roles. They are not remapped as remote key
 
 ## Connect to an existing host
 
-The host must already run SSH and an existing Herdr session. The first supported terminal contract is **Herdr CLI and server 0.9.0, socket protocol 22**. See [compatibility](docs/herdr-compatibility.md).
+The host must already run SSH and an existing Herdr session. The first supported terminal contract is **Herdr CLI and server 0.9.0, socket protocol 22**. See [compatibility](docs/integrations/herdr.md).
 
 1. In Settings, enter the host/IP, SSH port and username, Herdr session (`default` is explicit), and executable path. Use the absolute Herdr path if it is absent from the noninteractive SSH PATH. `~` is not shell-expanded in this field.
 2. Choose **SSH key → Create device key**. The app generates a dedicated Ed25519 key and encrypts its private part on the device. Copy the displayed **public key** into the host account's `~/.ssh/authorized_keys`. Alternatively, import an existing private key with Android's file picker, entering its passphrase first if needed. Other key formats remain unverified.
@@ -38,7 +48,7 @@ The host must already run SSH and an existing Herdr session. The first supported
 
 SSH uses the device's existing network. A LAN address or an already configured Tailscale address works if reachable; the app does not install or operate a VPN. No HTTP/WebSocket endpoint or additional public port is required.
 
-The connected RG Rotate has been paired with the development host over Tailscale; those credentials and its host profile live only on the device and are not bundled in this APK or source. See [real connection validation](docs/real-connection-validation.md). Removing the app deletes its private key. Revoke a device by removing only its matching public-key entry from the host's `authorized_keys`.
+Host profiles and SSH credentials are configured on each device and are not bundled in the APK or source. See [real connection validation](docs/validation/real-connection.md). Removing the app deletes its private key. Revoke a device by removing only its matching public-key entry from the host's `authorized_keys`.
 
 **Compose** saves an encrypted draft for the full host/session/terminal/agent identity. Review shows the recipient and content. **Send + Enter** sends a complete paste command followed by a separate Enter on the same control channel. **Text only** omits Enter. A successful transport write is not proof of execution or task success. Drafts remain available until cleared. Uncertain delivery is never replayed.
 
@@ -62,6 +72,8 @@ adb shell am start -n dev.herdr.handheld/.MainActivity
 
 `scripts/env.sh` runs the wrapper with the optional project-local toolchain used during development. Normal Android Studio/JDK installations do not require `.tools/`. Gradle's distribution checksum, version catalog, Gradle lockfiles, and npm lockfile are committed. This is a directly installable debug APK; a release signing key is not included. Debug signatures generated on different machines may differ.
 
+To build the named release artifact, run `./scripts/package-debug.sh`. It produces `artifacts/pdx-debug.apk` and its SHA-256 file. See [release instructions](docs/development/releases.md).
+
 ## Optional home launcher and recovery
 
 After testing the normal app, choose **Settings → Use as home app** and confirm through Android's HOME role chooser. The app never automatically requests or claims the role at startup.
@@ -72,10 +84,24 @@ If the app becomes unusable, open Android Settings from the system shade, change
 
 ## Validation and limitations
 
-Every app page prioritizes larger content. Select is reserved for help: tap for a bottom hint strip that fades after three seconds, or hold for the full button map. The strip omits obvious D-pad/back controls and keeps button legends on one line. The updated native design uses bare agent rows, a full-screen reader, and dark modals. Bundled Space Grotesk and JetBrains Mono match the reference offline. Status details are in the Select-hold map; Start opens system access. Android system bars can be revealed with an edge swipe. For the measured RG Rotate display, see [design decisions](docs/design-decisions.md).
+Every app page prioritizes larger content. Select is reserved for help: tap for a bottom hint strip that fades after three seconds, or hold for the full button map. The strip omits obvious D-pad/back controls and keeps button legends on one line. The updated native design uses bare agent rows, a full-screen reader, and dark modals. Bundled Space Grotesk and JetBrains Mono match the reference offline. Status details are in the Select-hold map; Start opens system access. Android system bars can be revealed with an edge swipe. For the measured RG Rotate display, see [design decisions](docs/product/design.md).
 
-See [device validation](docs/device-validation.md), [test commands and results](docs/testing.md), and [scope and UX decisions](docs/handoff.md). Build success, injected-event device tests, physical button tests, and hands-on comfort measurements are reported separately.
+See [device validation](docs/devices/rg-rotate.md), [test commands and results](docs/development/testing.md), and [scope and UX decisions](docs/product/scope.md). Build success, injected-event device tests, physical button tests, and hands-on comfort measurements are reported separately.
 
 Long-form editing, local AI inference, automatic approval, background notifications, takeover, host installation/update, and unrestricted device automation are not implemented. The Codex assistant uses the documented app-server interface on the SSH host; terminal messages still require separate confirmation.
 
 Third-party license information is in [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES) and `licenses/`.
+
+## Repository layout
+
+| Path | Contents |
+|---|---|
+| `app/` | Single native Android application module |
+| `terminal-assets/` | Local terminal renderer and pinned npm build |
+| `fixtures/` | Versioned Herdr and Codex contract samples |
+| `docs/` | Product, architecture, integrations, devices, and development guides |
+| `scripts/` | Build packaging and opt-in contract checks |
+| `artifacts/` | Current validation and historical evidence |
+| `licenses/` | Third-party license texts and dependency inventory |
+
+Contributions for additional handhelds start with a [device report](docs/devices/README.md). See [CONTRIBUTING](CONTRIBUTING.md) for the input, privacy, and validation requirements. Project code is MIT licensed; dependency licenses are recorded separately.

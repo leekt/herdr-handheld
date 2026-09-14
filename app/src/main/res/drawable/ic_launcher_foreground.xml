@@ -1,0 +1,5 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#F2F4F7" android:pathData="M20,40h4v4h-4z M24,40h4v4h-4z M28,40h4v4h-4z M32,40h4v4h-4z M20,44h4v4h-4z M36,44h4v4h-4z M20,48h4v4h-4z M36,48h4v4h-4z M20,52h4v4h-4z M24,52h4v4h-4z M28,52h4v4h-4z M32,52h4v4h-4z M20,56h4v4h-4z M20,60h4v4h-4z M20,64h4v4h-4z" />
+    <path android:fillColor="#F2F4F7" android:pathData="M44,40h4v4h-4z M48,40h4v4h-4z M52,40h4v4h-4z M56,40h4v4h-4z M44,44h4v4h-4z M60,44h4v4h-4z M44,48h4v4h-4z M60,48h4v4h-4z M44,52h4v4h-4z M60,52h4v4h-4z M44,56h4v4h-4z M60,56h4v4h-4z M44,60h4v4h-4z M60,60h4v4h-4z M44,64h4v4h-4z M48,64h4v4h-4z M52,64h4v4h-4z M56,64h4v4h-4z" />
+    <path android:fillColor="#FFB020" android:pathData="M68,40h4v4h-4z M84,40h4v4h-4z M68,44h4v4h-4z M84,44h4v4h-4z M72,48h4v4h-4z M80,48h4v4h-4z M76,52h4v4h-4z M72,56h4v4h-4z M80,56h4v4h-4z M68,60h4v4h-4z M84,60h4v4h-4z M68,64h4v4h-4z M84,64h4v4h-4z" />
+</vector>

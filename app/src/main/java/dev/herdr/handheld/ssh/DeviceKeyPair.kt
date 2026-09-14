@@ -20,7 +20,7 @@ class DeviceKeyPair(val privateKey: ByteArray, val publicKey: String) {
                 PemWriter(writer).use { it.writeObject(PemObject("OPENSSH PRIVATE KEY",blob)) }
                 val publicBlob=OpenSSHPublicKeyUtil.encodePublicKey(key.generatePublicKey())
                 return DeviceKeyPair(writer.toString().toByteArray(),
-                    "ssh-ed25519 ${Base64.getEncoder().encodeToString(publicBlob)} herdr-handheld")
+                    "ssh-ed25519 ${Base64.getEncoder().encodeToString(publicBlob)} pdx-device")
             } finally { blob.fill(0) }
         }
     }

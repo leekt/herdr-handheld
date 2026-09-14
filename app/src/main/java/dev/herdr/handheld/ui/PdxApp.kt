@@ -57,7 +57,7 @@ internal val White=Color(0xFFF2F4F7)
 internal val Green=Color(0xFF74DAA0)
 
 @Composable
-fun HandheldApp(model: ConnectionCoordinator) {
+fun PdxApp(model: ConnectionCoordinator) {
     val state by model.state.collectAsStateWithLifecycle()
     MaterialTheme(colorScheme=darkColorScheme(primary=White,onPrimary=Ink,background=Ink,surface=Ink,
         onSurface=White,surfaceVariant=Panel,onSurfaceVariant=Muted,outline=Outline,secondary=Green),typography=HandheldTypography) {
@@ -327,7 +327,7 @@ internal data class MenuEntry(val title: String,val detail: String="",val enable
                 Text("Public key · add to the host's authorized_keys",fontSize=13.sp,color=Amber)
                 SelectionContainer { Text(s.publicKey,fontFamily=ReaderFont,fontSize=12.sp) }
                 OutlinedButton(onClick={
-                    context.getSystemService(android.content.ClipboardManager::class.java).setPrimaryClip(android.content.ClipData.newPlainText("Herdr device public key",s.publicKey))
+                    context.getSystemService(android.content.ClipboardManager::class.java).setPrimaryClip(android.content.ClipData.newPlainText("PDX device public key",s.publicKey))
                     model.message("Public key copied. The private key stays on this device.")
                 }) { Text("Copy public key") }
             }
@@ -366,7 +366,7 @@ internal data class MenuEntry(val title: String,val detail: String="",val enable
     val raw=s.diagnostics.take(5).joinToString("\n").ifBlank { "Press a controller button to see its event." }
     val prompt=s.calibrating?.let { when(it) {
         LogicalAction.CONFIRM->"Press A · confirm";LogicalAction.BACK->"Press B · back";LogicalAction.ACTIONS->"Press X · actions";LogicalAction.COMPOSE->"Press Y · compose"
-        LogicalAction.PREVIOUS->"Press L1 · previous agent";LogicalAction.NEXT->"Press R1 · next agent";LogicalAction.INPUT->"Press Select · input mode";LogicalAction.HOME->"Press Start · app home";else->it.name
+        LogicalAction.PREVIOUS->"Press L1 · previous agent";LogicalAction.NEXT->"Press R1 · next agent";LogicalAction.INPUT->"Press Select · button help";LogicalAction.HOME->"Press Start · app home";else->it.name
     } }
     val entries=listOf(
         MenuEntry(prompt ?: "Calibrate buttons",if(prompt!=null)"The next physical press is recorded locally."else "Map physical A/B/X/Y, L1/R1, Select/Start",action=model::calibrate),
@@ -374,7 +374,7 @@ internal data class MenuEntry(val title: String,val detail: String="",val enable
         MenuEntry("Return home",action=model::home)
     )
     Column(Modifier.fillMaxSize()) {
-        Text("${Build.MODEL} · Android ${Build.VERSION.RELEASE}\n${metrics.widthPixels} × ${metrics.heightPixels} · ${metrics.densityDpi} dpi · WebView $webview\n${s.capabilities?.notes ?: s.phase.name}",
+        Text("PDX ${dev.herdr.handheld.BuildConfig.VERSION_NAME} · ${Build.MODEL} · Android ${Build.VERSION.RELEASE}\n${metrics.widthPixels} × ${metrics.heightPixels} · ${metrics.densityDpi} dpi · WebView $webview\n${s.capabilities?.notes ?: s.phase.name}",
             Modifier.padding(horizontal=16.dp,vertical=9.dp),fontSize=12.sp,color=Muted)
         Text(raw,Modifier.fillMaxWidth().background(Panel).padding(horizontal=16.dp,vertical=9.dp),fontSize=12.sp,lineHeight=17.sp,fontFamily=ReaderFont,color=Green)
         Box(Modifier.weight(1f)) { MenuList(s,model,entries) }

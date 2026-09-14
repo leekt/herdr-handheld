@@ -1,6 +1,6 @@
-# Codex assistant and voice
+# Codex integration: assistant and voice
 
-The launcher uses the user's existing Codex CLI on the configured SSH host. It opens `codex app-server --listen stdio://` on a separate SSH exec channel. No public port, new gateway, copied account token, or API-key billing is involved. This is an independent client integration, not an OpenAI product or an endorsement.
+PDX uses the user's existing Codex CLI on the configured SSH host. It opens `codex app-server --listen stdio://` on a separate SSH exec channel. No public port, new gateway, copied account token, or API-key billing is involved. This is an independent client integration, not an OpenAI product or an endorsement.
 
 Open Assistant with Y on Home, or from terminal Actions. Hold Y outside INPUT to speak to the assistant. Within INPUT or Compose, hold Y for a plain message transcript for the current agent. Release Y to finish; review the transcript, then use the normal message review to send. Keyboard input follows the same path.
 
@@ -12,7 +12,7 @@ The account page has no QR option, token-storage cards, invented account data, o
 
 ## Dedicated conversation
 
-The assistant creates its own named, durable Codex thread, scoped to the configured host profile and Herdr session. Subsequent requests resume that exact thread, including after disconnect. It never attaches to an existing Herdr agent's Codex thread. A small recent transcript and the thread reference are encrypted locally; Codex retains the full conversation on the host. The Context page shows recent exchanges. New conversation starts fresh without deleting the previous host conversation.
+The assistant creates its own named, durable Codex thread (new threads are named "PDX assistant"), scoped to the configured host profile and Herdr session. Subsequent requests resume that exact thread, including after disconnect. It never attaches to an existing Herdr agent's Codex thread. A small recent transcript and the thread reference are encrypted locally; Codex retains the full conversation on the host. The Context page shows recent exchanges. New conversation starts fresh without deleting the previous host conversation.
 
 Every turn supplies a fresh real agent inventory. Stable opaque aliases map back to full host/session/terminal/pane/agent identity locally. Prior inventory and action proposals are historical; the app never replays them on reconnect. Terminal output is excluded unless included for that request. Requests also include installed application names/identifiers to support app selection. Account credentials and SSH host addresses are not part of the prompt.
 
@@ -32,4 +32,8 @@ The app stores no audio recording. Late recognition callbacks are rejected by re
 
 ## Compatibility and validation
 
-Implementation contract: Codex CLI 0.153.4, generated local JSON Schema and the official [app-server documentation](https://learn.chatgpt.com/docs/app-server) and [authentication documentation](https://learn.chatgpt.com/docs/auth). Device test results are recorded separately in [real connection validation](real-connection-validation.md). Presence of a microphone/provider is not proof of spoken Korean/English recognition quality.
+Implementation contract: Codex CLI 0.153.4, generated local JSON Schema and the official [app-server documentation](https://learn.chatgpt.com/docs/app-server) and [authentication documentation](https://learn.chatgpt.com/docs/auth). Device test results are recorded separately in [real connection validation](../validation/real-connection.md). Presence of a microphone/provider is not proof of spoken Korean/English recognition quality.
+
+## Planned context controls
+
+Conversation selection, pinned notes, branching controls, and context-usage/compaction UI remain planned. Persistence of the current conversation is implemented; these additional controls are not. See the [context roadmap](../product/roadmap.md).

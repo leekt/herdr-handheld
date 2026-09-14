@@ -1,8 +1,10 @@
-# Native design decisions — RG Rotate, v0.2.0
+# PDX native design
 
 Reference: the user-updated `Launcher design scope/Herdr Launcher.dc.html`, “hidden-chrome set”, updated 2026-09-14. The current rule is **larger content, with help reserved for Select**. Tap Select for a three-second bottom hint strip; hold for a full map. This supersedes the earlier persistent-strip request.
 
-The device is 720×720 at 240 dpi, about 480dp across. The app uses immersive content with transient Android bars available by edge swipe. Layout comes from actual window constraints, not the artboard’s CSS pixel assumption. Fonts are bundled, unmodified Space Grotesk and JetBrains Mono; source commits, SHA-256 hashes and OFL licenses are included in `licenses/`.
+The first measured device, RG Rotate, is 720×720 at 240 dpi, about 480dp across. The app uses immersive content with transient Android bars available by edge swipe. Layout comes from actual window constraints, not the artboard’s CSS pixel assumption. Fonts are bundled, unmodified Space Grotesk and JetBrains Mono; source commits, SHA-256 hashes and OFL licenses are included in `licenses/`.
+
+PDX v0.3.0 uses an original pixel-letter PDX launcher icon in the existing dark/white/amber palette. The compact name appears in Android app/home selection and Diagnostics. The agent home remains focused on real content, with no new permanent title bar. Other screen shapes require device validation; this measurement is not a universal handheld layout.
 
 | Area | Reference | Implemented behavior |
 |---|---|---|

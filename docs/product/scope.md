@@ -1,4 +1,6 @@
-# Implementation handoff
+# PDX product scope
+
+**PDX — Pocket Dispatch & eXecution.** Native Android is the current implementation; broader handheld support is tracked in the [roadmap](roadmap.md) and [device matrix](../devices/README.md).
 
 Product intent: home → agent needing attention → read output → explicitly enter input or compose → respond → check another agent → home/sleep. A single independent Android app owns these screens and its controller input. Existing Herdr and remote agents remain unchanged.
 
@@ -12,11 +14,11 @@ The implementation uses one Android app module, Kotlin/Compose, coroutines/State
 - Late controller acquisition is rejected by a local generation. Target changes, backgrounding, and focus loss invalidate input and clear button presses.
 - Supported Herdr behavior is pinned to a measured 0.9.0 contract. A generic schema-driven protocol adapter is intentionally not introduced.
 - The default READ view is native, wrapping recent output with touch and D-pad scrolling, refreshed through the measured plain-text CLI. It freezes visible content while browsing; Latest resumes following. The ANSI viewport appears when explicitly entering input. Observer reads do not resize the remote PTY; controller acquisition can resize it.
-- The user’s `Launcher design scope` references inform the bare Home list, white focus outline, full-screen reader, grey/amber mode edge, modal panels, bundled reference fonts, and transient bottom button hints. See [design decisions](design-decisions.md). Every page prioritizes larger content. Select tap reveals hints for three seconds; holding it shows the map. Obvious D-pad/back hints are omitted; errors remain visible.
+- The user’s `Launcher design scope` references inform the bare Home list, white focus outline, full-screen reader, grey/amber mode edge, modal panels, bundled reference fonts, and transient bottom button hints. See [design decisions](design.md). Every page prioritizes larger content. Select tap reveals hints for three seconds; holding it shows the map. Obvious D-pad/back hints are omitted; errors remain visible.
 
 ## Next-step assistance
 
-The Codex assistant connects the user's ChatGPT subscription through the existing host's Codex app-server over SSH stdio. It owns a separate durable conversation, resumes context, refreshes real agent inventory per turn, and produces allowlisted proposed actions. Keyboard and Android speech input share a review path; hold Y in INPUT dictates a target-bound message instead. See [Codex assistant](codex-assistant.md). No hidden terminal submission or automatic approval is added.
+The Codex assistant connects the user's ChatGPT subscription through the existing host's Codex app-server over SSH stdio. It owns a separate durable conversation, resumes context, refreshes real agent inventory per turn, and produces allowlisted proposed actions. Keyboard and Android speech input share a review path; hold Y in INPUT dictates a target-bound message instead. See [Codex assistant](../integrations/codex.md). No hidden terminal submission or automatic approval is added.
 
 ## State and input rules
 

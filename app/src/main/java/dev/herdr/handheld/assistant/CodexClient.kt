@@ -59,7 +59,7 @@ class CodexClient(private val channel: SshChannel) {
     }
     suspend fun initialize() {
         call("initialize",buildJsonObject {
-            putJsonObject("clientInfo") { put("name","herdr_handheld");put("title","Herdr Handheld");put("version","0.2.0") }
+            putJsonObject("clientInfo") { put("name","pdx");put("title","PDX");put("version",dev.herdr.handheld.BuildConfig.VERSION_NAME) }
             // environments:[] disables host environment access on the verified CLI contract.
             putJsonObject("capabilities") { put("experimentalApi",true) }
         })
@@ -100,7 +100,7 @@ class CodexClient(private val channel: SshChannel) {
             put("developerInstructions","Use only the provided launcher data. Never call tools, read files, run commands, or access the host environment. Propose actions for the user to review; never claim execution.")
         })["thread"]?.jsonObject?.text("id") ?: throw ContractException("Missing Codex thread")
         onThread(thread)
-        if(resumeId.isBlank())call("thread/name/set",buildJsonObject { put("threadId",thread);put("name","Handheld assistant") })
+        if(resumeId.isBlank())call("thread/name/set",buildJsonObject { put("threadId",thread);put("name","PDX assistant") })
         call("turn/start",buildJsonObject {
             put("threadId",thread);putJsonArray("environments") {};putJsonArray("input") { add(buildJsonObject { put("type","text");put("text",prompt) }) }
             put("outputSchema",AssistantContract.schema)
