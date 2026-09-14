@@ -1,5 +1,5 @@
 {
-  "started_at": "2026-09-14T16:26:19.727916+00:00",
+  "started_at": "2026-09-14T16:34:13.980705+00:00",
   "checks": {
     "npm_install": "passed",
     "terminal_bundle": "passed",
@@ -19,7 +19,7 @@
     "captured_at": "2026-09-14T16:24:33.840999+00:00"
   },
   "version": "0.4.0",
-  "source_sha256": "1f5a0fd6f8bfb480921074d9298f781cc0f2bbd2a90e45c9bf7663f111396099",
+  "source_sha256": "e915e5ae5893005eda16f1e528b1cd4ea8cb189fecb5a407773846a62231b380",
   "jvm": {
     "tests": 41,
     "failures": 0,
@@ -41,6 +41,6 @@
     "bytes": 37887332,
     "sha256": "773bb5224b0fdcc36fd068bef0c951cfb26d2602432011750a910eb13f6f92bc"
   },
-  "finished_at": "2026-09-14T16:26:29.648797+00:00",
+  "finished_at": "2026-09-14T16:34:23.575295+00:00",
   "status": "passed"
 }
