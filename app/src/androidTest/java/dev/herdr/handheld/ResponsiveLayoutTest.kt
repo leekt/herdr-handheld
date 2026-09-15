@@ -52,6 +52,19 @@ class ResponsiveLayoutTest {
                         assertTrue(node.boundsInRoot.right<=strip.boundsInRoot.right+1)
                     }
                     assertEquals(TerminalAccess.NONE,model.state.value.access)
+                    if(screen==Screen.TERMINAL && AgentChat.supported(model.state.value.selected?.ref)) {
+                        for(view in listOf(AgentView.CHAT,AgentView.TERMINAL)) {
+                            scenario.onActivity { model.setAgentView(view) }
+                            val group=compose.onNodeWithContentDescription("Agent view mode").assertIsDisplayed().fetchSemanticsNode()
+                            val labels=compose.onAllNodes(hasAnyAncestor(hasContentDescription("Agent view mode")),useUnmergedTree=true).fetchSemanticsNodes()
+                            for(label in labels) {
+                                val layouts=mutableListOf<TextLayoutResult>()
+                                label.config.getOrNull(SemanticsActions.GetTextLayoutResult)?.action?.invoke(layouts)
+                                assertTrue(layouts.all { it.lineCount==1 && it.getLineRight(0)<=it.size.width+1 })
+                                assertTrue(label.boundsInRoot.left>=group.boundsInRoot.left-1 && label.boundsInRoot.right<=group.boundsInRoot.right+1)
+                            }
+                        }
+                    }
                 }
             }
             scenario.onActivity { model.home() }

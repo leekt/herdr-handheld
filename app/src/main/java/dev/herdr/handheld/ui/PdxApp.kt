@@ -169,16 +169,16 @@ fun PdxApp(model: ConnectionCoordinator) {
             modifier=Modifier.fillMaxSize().padding(start=5.dp,top=26.dp),onRelease={model.bindRenderer(null);it.destroy()})
         if(reading) key(s.selected?.ref?.key) { ReadingPane(s,model) }
         Box(Modifier.align(Alignment.CenterStart).fillMaxHeight().width(5.dp).background(if(s.mode==InputMode.REMOTE_KEYS)Amber else Color(0xFF4A5464)))
-        Row(Modifier.align(Alignment.TopEnd).background(Color.Black.copy(alpha=.9f)).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically) {
-            if(reading && AgentChat.supported(s.selected?.ref))TextButton(onClick={model.setAgentView(AgentView.CHAT)},contentPadding=PaddingValues(horizontal=8.dp),modifier=Modifier.height(36.dp)) { Text("Chat",fontSize=12.sp) }
+        Row(Modifier.align(Alignment.TopCenter).fillMaxWidth().background(Color.Black.copy(alpha=.95f)).padding(start=12.dp,end=6.dp),verticalAlignment=Alignment.CenterVertically) {
             val label=when {
                 s.acquiring->"REQUESTING";s.mode==InputMode.REMOTE_KEYS->"INPUT · ${s.selected?.title}"
                 s.phase!=ConnectionPhase.READY || s.problem==ProblemCode.OUTPUT->"READ · cached ${time(s.reading.updatedAt)}"
                 !s.reading.following->"READ · paused";else->"READ · ${s.selected?.title}"
             }
-            Text(label,Modifier.widthIn(max=260.dp).clickable { model.setHud(true) }.padding(vertical=7.dp),fontSize=11.sp,
+            Text(label,Modifier.weight(1f).clickable { model.setHud(true) }.padding(vertical=7.dp),fontSize=11.sp,
                 color=if(s.mode==InputMode.REMOTE_KEYS || s.phase!=ConnectionPhase.READY)Amber else Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
             if(reading && !s.reading.following) TextButton(onClick=model::resumeReading,contentPadding=PaddingValues(horizontal=10.dp),modifier=Modifier.height(32.dp)) { Text("Latest ↓",fontSize=11.sp,color=Amber) }
+            if(reading && AgentChat.supported(s.selected?.ref))AgentViewSwitch(s,model)
             if(!reading && !s.acquiring)TextButton(onClick=model::beginTerminalVoice,contentPadding=PaddingValues(horizontal=12.dp),modifier=Modifier.height(36.dp)) { Text("Mic",fontSize=12.sp,color=Amber) }
         }
         if(s.deliveryUncertain || s.phase!=ConnectionPhase.READY || s.problem!=ProblemCode.NONE)
@@ -233,10 +233,14 @@ internal data class MenuEntry(val title: String,val detail: String="",val enable
 
 @Composable private fun ActionsScreen(s: UiState,model: ConnectionCoordinator) {
     val entries=buildList {
+        if(AgentChat.supported(s.selected?.ref)) {
+            val showMessages=s.agentView==AgentView.TERMINAL || s.access==TerminalAccess.CONTROLLER || s.acquiring
+            add(MenuEntry(if(showMessages)"Switch to Messages"else "Switch to Terminal",
+                if(showMessages)"Read the conversation · default view"else "Colored output and interactive prompts",action=model::toggleAgentView))
+        }
         add(MenuEntry("Assistant","Ask Codex using voice or keyboard",action={model.openAssistant()}))
         if(s.selected!=null) {
             if(AgentChat.supported(s.selected.ref)) {
-                add(MenuEntry(if(s.agentView==AgentView.CHAT)"Terminal view"else "Chat view",s.chat.error.ifBlank { "Switch between messages and colored terminal output" },action={model.navigate(Screen.TERMINAL);model.setAgentView(if(s.agentView==AgentView.CHAT)AgentView.TERMINAL else AgentView.CHAT)}))
                 if(s.agentView==AgentView.CHAT) {
                     add(MenuEntry("Earlier messages",enabled=s.chat.page?.older!=null && !s.chat.loading,action={model.navigate(Screen.TERMINAL);model.olderChat()}))
                     add(MenuEntry("Latest messages",action={model.navigate(Screen.TERMINAL);model.latestChat()}))

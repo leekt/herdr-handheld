@@ -24,6 +24,7 @@ data class AgentChatState(
 /** Persisted Codex display history only. Never resume, subscribe, start a turn or send input. */
 object AgentChat {
     fun supported(target: TargetRef?)=target?.agentKind=="codex" && !target.agentSessionId.isNullOrBlank()
+    fun defaultView(target: TargetRef?)=if(supported(target))AgentView.CHAT else AgentView.TERMINAL
     suspend fun read(client: CodexClient,target: TargetRef,cursor: String?): AgentChatPage {
         require(supported(target))
         val threadId=target.agentSessionId!!

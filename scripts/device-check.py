@@ -18,7 +18,7 @@ tests=ROOT/'app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk'
 for path in (apk,tests):
     subprocess.run([args.adb,'install','-r',str(path)],check=True,stdout=subprocess.DEVNULL)
 print('PDX_TEST_APK_SHA256: '+hashlib.sha256(apk.read_bytes()).hexdigest(),flush=True)
-suites=['RealReadOnlyTest','ResponsiveLayoutTest','RealVoiceTest','RealAgentChatTest','RendererDeviceTest','RealAssistantTest','RealConversationTest','RealServicesTest']
+suites=['RealReadOnlyTest','ResponsiveLayoutTest','RealVoiceTest','RealAgentChatTest','RealMessageModeTest','RendererDeviceTest','RealAssistantTest','RealConversationTest','RealServicesTest']
 command=[args.adb,'shell','am','instrument','-w','-r','-e','runRealReadOnly','true','-e','runRealVoice','true','-e','runRealAssistant','true','-e','class',','.join('dev.herdr.handheld.'+suite for suite in suites),'dev.herdr.handheld.test/androidx.test.runner.AndroidJUnitRunner']
 result=subprocess.run(command,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
 print(result.stdout,flush=True)

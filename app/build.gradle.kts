@@ -12,8 +12,8 @@ android {
         applicationId = "dev.herdr.handheld"
         minSdk = 31
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.4.1"
+        versionCode = 6
+        versionName = "0.4.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     // Optional maintainer signing. CI never receives signing material for untrusted PRs.

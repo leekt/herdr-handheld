@@ -131,7 +131,10 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
         if(visible==value) return
         visible=value
         if(!state.value.loaded) return
-        if(value) connect() else {
+        if(value) {
+            mutable.update { it.copy(agentView=AgentChat.defaultView(it.selected?.ref),chat=it.chat.copy(error="",loading=false)) }
+            connect()
+        } else {
             cancelVoice()
             if(state.value.screen==Screen.COMPOSE) saveDraft()
             safety.connection(false);sync();afterAcquire=null
@@ -253,7 +256,7 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
         modalParents.clear()
         invalidateTarget(target.ref)
         mutable.update { it.copy(selected=target,selectedKey=target.ref.key,message="Read mode · your buttons stay local.",problem=ProblemCode.NONE,deliveryUncertain=false,draft="",reviewDraft=false,
-            agentView=if(AgentChat.supported(target.ref))AgentView.CHAT else AgentView.TERMINAL,chat=AgentChatState()) }
+            agentView=AgentChat.defaultView(target.ref),chat=AgentChatState()) }
         viewModelScope.launch { settings.saveLastTarget(target.ref.key) }
         transition(Screen.TERMINAL)
         if(state.value.phase==ConnectionPhase.READY) recentOutput()
@@ -288,6 +291,7 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
                 val wasSending=state.value.sending
                 safety.invalidate(target.ref);sync();afterAcquire=null
                 mutable.update { it.copy(inputEpoch=it.inputEpoch+1,sending=false,deliveryUncertain=it.deliveryUncertain || wasSending,problem=ProblemCode.TERMINAL,
+                    agentView=AgentChat.defaultView(target.ref),
                     message=if(first)"Control unavailable; another client may own it. Reading only."else "Terminal stream interrupted. Input is disabled.") }
                 recentOutput()
             })
@@ -306,8 +310,9 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
     fun leaveInput(note: String="Read mode · control released.") {
         val selected=state.value.selected
         invalidateTarget(selected?.ref)
-        mutable.update { it.copy(message=note,sending=false) }
+        mutable.update { it.copy(message=note,sending=false,agentView=AgentChat.defaultView(selected?.ref)) }
         if(selected!=null && state.value.phase==ConnectionPhase.READY) recentOutput()
+        refreshChat()
     }
     fun home() {
         cancelVoice(false)
@@ -607,10 +612,17 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
         if(old!=null)viewModelScope.launch { old.close() }
     }
     fun setAgentView(view: AgentView) {
+        if(view==AgentView.CHAT && !AgentChat.supported(state.value.selected?.ref))return
         if(state.value.mode==InputMode.REMOTE_KEYS || state.value.acquiring)leaveInput()
         chatJob?.cancel();chatJob=null
         mutable.update { it.copy(agentView=view,chat=it.chat.copy(loading=false,error="")) }
         if(view==AgentView.CHAT)refreshChat(true)else recentOutput()
+    }
+    fun toggleAgentView() {
+        val s=state.value
+        val showMessages=s.agentView==AgentView.TERMINAL || s.access==TerminalAccess.CONTROLLER || s.acquiring
+        navigate(Screen.TERMINAL)
+        setAgentView(if(showMessages)AgentView.CHAT else AgentView.TERMINAL)
     }
     fun followChat(follow: Boolean) { mutable.update { it.copy(chat=it.chat.follow(follow)) } }
     fun latestChat() {
@@ -656,8 +668,7 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
                 if(current()) {
                     val old=historyClient;historyClient=null;historyBinary=null
                     old?.close()
-                    mutable.update { it.copy(chat=it.chat.copy(loading=false,error="Chat history is unavailable. Use Terminal, or retry Chat."),
-                        agentView=if(it.chat.page==null)AgentView.TERMINAL else it.agentView) }
+                    mutable.update { it.copy(chat=it.chat.copy(loading=false,error="Messages could not be loaded. Retry, or select Terminal for current output.")) }
                 }
             } finally { opening?.close() }
         }

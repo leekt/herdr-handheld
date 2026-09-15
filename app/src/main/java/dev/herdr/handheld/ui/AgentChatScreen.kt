@@ -4,12 +4,16 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -20,6 +24,20 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+@Composable internal fun AgentViewSwitch(s: UiState,model: ConnectionCoordinator) {
+    Row(Modifier.selectableGroup().semantics { contentDescription="Agent view mode" },horizontalArrangement=Arrangement.spacedBy(2.dp)) {
+        for((view,label) in listOf(AgentView.CHAT to "Messages",AgentView.TERMINAL to "Terminal")) {
+            val active=s.agentView==view
+            TextButton(onClick={if(!active)model.setAgentView(view)},
+                modifier=Modifier.height(38.dp).semantics { selected=active;role=Role.Tab;contentDescription="Show ${label.lowercase(Locale.ROOT)}" },
+                contentPadding=PaddingValues(horizontal=9.dp),shape=RoundedCornerShape(9.dp),
+                colors=ButtonDefaults.textButtonColors(contentColor=if(active)Amber else Muted,containerColor=if(active)FocusPanel else androidx.compose.ui.graphics.Color.Transparent)) {
+                Text(label,fontSize=12.sp,maxLines=1,softWrap=false)
+            }
+        }
+    }
+}
 
 @Composable internal fun AgentChatScreen(s: UiState,model: ConnectionCoordinator) {
     val chat=s.chat
@@ -34,9 +52,9 @@ import java.util.Locale
                     !chat.following->"Reading paused · $status"
                     else->"Saved messages · $status"
                 }
-                Text(label,fontSize=11.sp,color=if(s.phase==ConnectionPhase.READY)Muted else Amber)
+                Text(label,fontSize=11.sp,color=if(s.phase==ConnectionPhase.READY)Muted else Amber,maxLines=1,overflow=TextOverflow.Ellipsis)
             }
-            TextButton(onClick={model.setAgentView(AgentView.TERMINAL)}) { Text("Terminal",fontSize=12.sp) }
+            AgentViewSwitch(s,model)
         }
         HorizontalDivider(color=Outline)
         key(s.selected?.ref?.key,chat.cursor) {
@@ -69,10 +87,11 @@ import java.util.Locale
                     }
                 }
                 if(chat.updatedAt>0)Text("Saved history · ${SimpleDateFormat("HH:mm:ss",Locale.ROOT).format(Date(chat.updatedAt))}\nTool details and live choices are in Terminal.",fontSize=11.sp,lineHeight=16.sp,color=Muted)
-                if(chat.error.isNotBlank())Text(chat.error,fontSize=13.sp,color=Amber)
+                if(chat.page!=null && chat.error.isNotBlank())Text(chat.error,fontSize=13.sp,color=Amber)
             }
         }
-        if(!chat.following || chat.cursor!=null || chat.error.isNotBlank())TextButton(onClick=model::latestChat,modifier=Modifier.align(Alignment.End)) { Text(if(chat.error.isNotBlank())"Retry chat"else "Latest messages ↓",color=Amber) }
+        if(!chat.following || chat.cursor!=null || chat.error.isNotBlank())TextButton(onClick=model::latestChat,modifier=Modifier.align(Alignment.End)) { Text(if(chat.error.isNotBlank())"Retry messages"else "Latest messages ↓",color=Amber) }
+        if(s.deliveryUncertain || s.problem!=ProblemCode.NONE)Text(s.message,Modifier.fillMaxWidth().background(Panel).padding(12.dp,8.dp),fontSize=13.sp,color=Amber,maxLines=3)
         HorizontalDivider(color=Outline)
         Row(Modifier.fillMaxWidth().background(Panel).padding(horizontal=10.dp,vertical=4.dp),verticalAlignment=Alignment.CenterVertically) {
             TextButton(onClick={model.openCompose()},modifier=Modifier.weight(1f)) { Text("Write a reply…",Modifier.fillMaxWidth(),fontSize=17.sp,color=Muted) }

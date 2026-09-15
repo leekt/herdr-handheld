@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.2 — Default message view
+
+- Make Messages / Terminal a visible, labeled switch in both read headers. X then A toggles the view through the first Actions item.
+- Open supported agents in Messages and restore it after controller input and app resume. History errors keep the selected view and show Retry; Terminal stays available explicitly.
+- Keep connection and uncertain-delivery notices visible in Messages, and preserve pairing. See [executed validation](docs/validation/pdx-0.4.2.md).
+
 ## 0.4.1 — Agent chat, voice and terminal color
 
 - Read existing Codex agents as native chat messages, with Markdown formatting, earlier history pages and a reply/Mic row. Preserve the colored Terminal view for live choices and other agents.
