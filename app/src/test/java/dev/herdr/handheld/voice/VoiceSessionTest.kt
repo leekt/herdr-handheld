@@ -5,6 +5,15 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class VoiceSessionTest {
+    @Test fun releaseWhileStartingCannotBeReopenedByLateProviderCallbacks() {
+        val session=VoiceSession();val target=TargetRef("p","s","t","pane","codex","identity")
+        session.begin(target,"Current agent");val id=session.state.id
+        assertTrue(session.update(id,VoicePhase.TRANSCRIBING))
+        assertFalse(session.update(id,VoicePhase.LISTENING,text="late partial"))
+        assertEquals(target,session.state.target)
+        assertTrue(session.update(id,VoicePhase.REVIEW,text="한글 and English"))
+        assertEquals("한글 and English",session.state.transcript)
+    }
     @Test fun ignoresLateResultsAfterCancelOrNewRecipient() {
         val session=VoiceSession();val target=TargetRef("p","s","t","pane","codex","identity")
         session.begin(target,"First");val id=session.state.id

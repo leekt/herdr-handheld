@@ -1,6 +1,9 @@
 package dev.herdr.handheld.assistant
 
 import dev.herdr.handheld.ssh.SshChannel
+import dev.herdr.handheld.herdr.AgentChat
+import dev.herdr.handheld.herdr.TargetRef
+import dev.herdr.handheld.herdr.ContractException
 import java.io.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.json.*
@@ -28,6 +31,32 @@ private class Peer(val respond: (JsonObject,(JsonObject)->Unit)->Unit): SshChann
 private fun reply(request: JsonObject,result: JsonObject=buildJsonObject {})=buildJsonObject { put("id",request.getValue("id"));put("result",result) }
 private fun event(method: String,params: JsonObject)=buildJsonObject { put("method",method);put("params",params) }
 class CodexClientTest {
+    @Test fun existingAgentHistoryUsesOnlyReadOnlyMethodsAndExplicitSessionIdentity()=runBlocking {
+        val fixture=Json.parseToJsonElement(javaClass.classLoader!!.getResource("codex/0.153.4/agent-chat.json")!!.readText()).jsonObject
+        val peer=Peer { request,send -> when(request.text("method")) {
+            "initialize"->send(reply(request))
+            "thread/read"->send(reply(request,buildJsonObject { putJsonObject("thread") { put("id","existing-thread") } }))
+            "thread/turns/list"->send(reply(request,fixture))
+        } }
+        val client=CodexClient(peer)
+        try {
+            client.initialize()
+            val page=AgentChat.read(client,TargetRef("host","named-session","term","pane","codex","existing-thread"),"opaque-cursor")
+            assertEquals(4,page.messages.size)
+            assertEquals(listOf("initialize","initialized","thread/read","thread/turns/list"),peer.received.map { it.text("method") })
+            val params=peer.received.last().getValue("params").jsonObject
+            assertEquals("existing-thread",params.text("threadId"));assertEquals("opaque-cursor",params.text("cursor"))
+            assertEquals("summary",params.text("itemsView"));assertEquals(6,params.getValue("limit").jsonPrimitive.int)
+        } finally { client.close() }
+    }
+    @Test fun mismatchedHistoryIdentityDoesNotReadAnotherThread()=runBlocking {
+        val peer=Peer { request,send -> send(reply(request,buildJsonObject { putJsonObject("thread") { put("id","different-thread") } })) }
+        val client=CodexClient(peer)
+        try {
+            try { AgentChat.read(client,TargetRef("host","session","term","pane","codex","expected-thread"),null);fail("Expected identity rejection") }
+            catch(_: ContractException) { assertEquals(listOf("thread/read"),peer.received.map { it.text("method") }) }
+        } finally { client.close() }
+    }
     @Test fun notificationsBeforeAcknowledgementAreNotLostAndApprovalsAreDenied()=runBlocking {
         val peer=Peer { request,send -> when(request.text("method")) {
             "initialize" -> { send(buildJsonObject { put("id","server-approval");put("method","item/commandExecution/requestApproval") });send(reply(request)) }

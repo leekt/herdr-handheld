@@ -39,6 +39,8 @@ import dev.herdr.handheld.input.LogicalAction
 import dev.herdr.handheld.input.ControllerCommands
 import dev.herdr.handheld.launcher.SystemAccess
 import dev.herdr.handheld.terminal.XtermWebView
+import dev.herdr.handheld.terminal.TerminalText
+import androidx.compose.ui.text.AnnotatedString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -71,7 +73,7 @@ fun PdxApp(model: ConnectionCoordinator) {
                     ModalSheet(when(state.screen) {
                         Screen.SETTINGS->"Settings";Screen.DIAGNOSTICS->"Diagnostics";Screen.APPS->"All apps"
                         Screen.CONVERSATION->"Conversation";Screen.ASSISTANT->"Assistant";Screen.CODEX->"Codex account";Screen.VOICE->if(state.voice.phase==VoicePhase.REVIEW)"Review voice"else "Voice"
-                        Screen.SYSTEM->"System";Screen.CONTROL->"Take control?";Screen.COMPOSE->"Compose";else->"Actions"
+                        Screen.SYSTEM->"System";Screen.CONTROL->"Input";Screen.COMPOSE->"Compose";else->"Actions"
                     },model::back) {
                         when(state.screen) {
                             Screen.CONVERSATION->ConversationScreen(state,model)
@@ -161,12 +163,14 @@ fun PdxApp(model: ConnectionCoordinator) {
 
 @Composable private fun TerminalScreen(s: UiState,model: ConnectionCoordinator) {
     val reading=s.mode!=InputMode.REMOTE_KEYS && !s.acquiring
+    if(reading && s.access!=TerminalAccess.CONTROLLER && s.agentView==AgentView.CHAT) { AgentChatScreen(s,model);return }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         if(!reading || s.access==TerminalAccess.CONTROLLER) AndroidView(factory={ context -> XtermWebView(context,model::viewport) { model.leaveInput(it) }.also { model.bindRenderer(it) } },
             modifier=Modifier.fillMaxSize().padding(start=5.dp,top=26.dp),onRelease={model.bindRenderer(null);it.destroy()})
         if(reading) key(s.selected?.ref?.key) { ReadingPane(s,model) }
         Box(Modifier.align(Alignment.CenterStart).fillMaxHeight().width(5.dp).background(if(s.mode==InputMode.REMOTE_KEYS)Amber else Color(0xFF4A5464)))
         Row(Modifier.align(Alignment.TopEnd).background(Color.Black.copy(alpha=.9f)).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically) {
+            if(reading && AgentChat.supported(s.selected?.ref))TextButton(onClick={model.setAgentView(AgentView.CHAT)},contentPadding=PaddingValues(horizontal=8.dp),modifier=Modifier.height(36.dp)) { Text("Chat",fontSize=12.sp) }
             val label=when {
                 s.acquiring->"REQUESTING";s.mode==InputMode.REMOTE_KEYS->"INPUT · ${s.selected?.title}"
                 s.phase!=ConnectionPhase.READY || s.problem==ProblemCode.OUTPUT->"READ · cached ${time(s.reading.updatedAt)}"
@@ -175,6 +179,7 @@ fun PdxApp(model: ConnectionCoordinator) {
             Text(label,Modifier.widthIn(max=260.dp).clickable { model.setHud(true) }.padding(vertical=7.dp),fontSize=11.sp,
                 color=if(s.mode==InputMode.REMOTE_KEYS || s.phase!=ConnectionPhase.READY)Amber else Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
             if(reading && !s.reading.following) TextButton(onClick=model::resumeReading,contentPadding=PaddingValues(horizontal=10.dp),modifier=Modifier.height(32.dp)) { Text("Latest ↓",fontSize=11.sp,color=Amber) }
+            if(!reading && !s.acquiring)TextButton(onClick=model::beginTerminalVoice,contentPadding=PaddingValues(horizontal=12.dp),modifier=Modifier.height(36.dp)) { Text("Mic",fontSize=12.sp,color=Amber) }
         }
         if(s.deliveryUncertain || s.phase!=ConnectionPhase.READY || s.problem!=ProblemCode.NONE)
             Text(s.message,Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Panel).padding(12.dp,8.dp),fontSize=12.sp,color=Amber,maxLines=3)
@@ -201,8 +206,8 @@ private data class ReadPosition(val value: Int,val maximum: Int,val moving: Bool
             if(settled)touchScrolling=false
         }
     }
-    Text(s.reading.output ?: if(s.phase==ConnectionPhase.READY)"Loading output…"else "Reconnect to read this agent's output.",
-        Modifier.fillMaxSize().background(Color.Black).verticalScroll(scroll).padding(start=21.dp,end=16.dp,top=30.dp,bottom=10.dp),fontFamily=ReaderFont,fontSize=s.fontSize.sp,lineHeight=(s.fontSize*1.45).sp)
+    Text(s.reading.formatted ?: AnnotatedString(if(s.phase==ConnectionPhase.READY)"Loading output…"else "Reconnect to read this agent's output."),
+        Modifier.fillMaxSize().background(Color.Black).verticalScroll(scroll).padding(start=21.dp,end=16.dp,top=38.dp,bottom=10.dp),color=TerminalText.foreground,fontFamily=ReaderFont,fontSize=s.fontSize.sp,lineHeight=(s.fontSize*1.45).sp)
 }
 
 internal data class MenuEntry(val title: String,val detail: String="",val enabled: Boolean=true,val action: ()->Unit)
@@ -230,9 +235,17 @@ internal data class MenuEntry(val title: String,val detail: String="",val enable
     val entries=buildList {
         add(MenuEntry("Assistant","Ask Codex using voice or keyboard",action={model.openAssistant()}))
         if(s.selected!=null) {
+            if(AgentChat.supported(s.selected.ref)) {
+                add(MenuEntry(if(s.agentView==AgentView.CHAT)"Terminal view"else "Chat view",s.chat.error.ifBlank { "Switch between messages and colored terminal output" },action={model.navigate(Screen.TERMINAL);model.setAgentView(if(s.agentView==AgentView.CHAT)AgentView.TERMINAL else AgentView.CHAT)}))
+                if(s.agentView==AgentView.CHAT) {
+                    add(MenuEntry("Earlier messages",enabled=s.chat.page?.older!=null && !s.chat.loading,action={model.navigate(Screen.TERMINAL);model.olderChat()}))
+                    add(MenuEntry("Latest messages",action={model.navigate(Screen.TERMINAL);model.latestChat()}))
+                }
+            }
             if(s.access==TerminalAccess.NONE) add(MenuEntry("Reopen terminal","Fetch a new initial screen",action={model.open(s.selected)}))
             add(MenuEntry("Ask for next steps","Ask Codex about the selected agent.",action=model::askNextSteps))
             add(MenuEntry("Write a message","Native editor · drafts stay on this device",action={model.openCompose()}))
+            add(MenuEntry("Voice message","Dictate to this agent, then review",action=model::beginTerminalVoice))
             if(s.access==TerminalAccess.CONTROLLER) {
                 for(key in listOf("Esc","Tab","Shift+Tab","Ctrl+C")) add(MenuEntry(key,if(key=="Ctrl+C")"Interrupt the current input or process"else "Send this exact key",action={model.sendKey(key)}))
                 add(MenuEntry("Exit input mode","Release control and return to reading",action={model.leaveInput();model.navigate(Screen.TERMINAL)}))
@@ -266,6 +279,7 @@ internal data class MenuEntry(val title: String,val detail: String="",val enable
             Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                 Text(if(s.draftSaved) "Draft saved locally" else "Unsent draft",fontSize=12.sp,color=Muted,modifier=Modifier.weight(1f))
                 TextButton(onClick=model::clearDraft) { Text("Clear") }
+                TextButton(onClick=model::beginTerminalVoice) { Text("Mic") }
                 Button(onClick=model::reviewDraft,enabled=s.draft.isNotBlank()) { Text("Review") }
             }
         }
@@ -389,9 +403,11 @@ internal data class MenuEntry(val title: String,val detail: String="",val enable
     Column(Modifier.fillMaxSize().padding(6.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
         Text(s.selected?.title.orEmpty(),fontSize=25.sp,fontWeight=FontWeight.Bold,color=Amber)
         Text("${s.profile.host} / ${s.profile.session} / ${s.selected?.ref?.paneId.orEmpty()}",fontFamily=ReaderFont,fontSize=12.sp,color=Muted)
-        Text("D-pad and A go to this terminal only after Herdr grants control. B always returns to reading.",fontSize=17.sp,lineHeight=24.sp)
+        Text("Speak or write a message, or use controller keys for terminal choices.",fontSize=17.sp,lineHeight=24.sp)
         Box(Modifier.weight(1f)) { MenuList(s,model,listOf(
             MenuEntry("Request control","No automatic takeover",action={model.navigate(Screen.TERMINAL);model.requestInput()}),
+            MenuEntry("Voice message","Hold Y from the terminal, or start here",action=model::beginTerminalVoice),
+            MenuEntry("Write a message","Review the recipient and text before sending",action={model.openCompose()}),
             MenuEntry("Keep reading",action={model.navigate(Screen.TERMINAL)})
         )) }
     }
@@ -421,7 +437,7 @@ internal data class MenuEntry(val title: String,val detail: String="",val enable
         Text(target?.title ?: "Agent home",fontSize=25.sp,fontWeight=FontWeight.Bold)
         Text("${s.profile.name} / ${s.profile.session}\n${s.phase.name} · ${s.access.name} · ${target?.ref?.paneId ?: "no target"}",fontSize=13.sp,color=Muted,fontFamily=ReaderFont)
         Text("Last checked ${time(s.lastChecked)} · output ${time(s.reading.updatedAt)}",fontSize=12.sp,color=Muted)
-        for(command in ControllerCommands.forScreen(s.screen,s.mode,s.acquiring,s.reviewDraft)) {
+        for(command in ControllerCommands.forScreen(s.screen,s.mode,s.acquiring,s.reviewDraft,s.voice.phase)) {
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                 KeyPill(command.key,false)
                 Text(command.detail+if(command.enabled)""else " · unavailable here",fontSize=16.sp,color=if(command.enabled)White else Muted,modifier=Modifier.weight(1f))
@@ -444,8 +460,7 @@ internal data class ButtonHint(val key: String,val label: String,val action: Log
     val hints=when {
         s.hostKey!=null->listOf(ButtonHint("Touch","Compare fingerprint"))
         s.calibrating!=null->listOf(ButtonHint("Any","Assign button"))
-        s.screen==Screen.VOICE && s.voice.phase!=VoicePhase.REVIEW->listOf(ButtonHint("Y","Release to finish"))
-        else->ControllerCommands.forScreen(s.screen,s.mode,s.acquiring,s.reviewDraft).filter { it.hint && it.enabled }.take(3).map { ButtonHint(it.key,it.label,it.action) }
+        else->ControllerCommands.forScreen(s.screen,s.mode,s.acquiring,s.reviewDraft,s.voice.phase).filter { it.hint && it.enabled }.take(3).map { ButtonHint(it.key,it.label,it.action) }
     }
     val input=s.mode==InputMode.REMOTE_KEYS && !s.hud
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).background(Panel).heightIn(min=44.dp).semantics { contentDescription="Controller hints" }.padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically,

@@ -47,6 +47,8 @@ data class UiState(
     val deliveryUncertain: Boolean = false,
     val menuIndex: Int = 0,
     val reading: ReadingBuffer = ReadingBuffer(),
+    val agentView: AgentView = AgentView.TERMINAL,
+    val chat: AgentChatState = AgentChatState(),
     val recentScroll: Int = 0,
     val recentMaxScroll: Int = 0,
     val readScrollTarget: Int = 0,
@@ -84,6 +86,10 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
     private var voiceParent=Screen.HOME
     private var connectionJob: Job?=null
     private var readJob: Job?=null
+    private var chatJob: Job?=null
+    private var historyClient: CodexClient?=null
+    private var historyBinary: String?=null
+    var chatScroll: ((Int)->Unit)?=null
     private var hintsJob: Job?=null
     private val terminalSession=dev.herdr.handheld.terminal.TerminalSession(viewModelScope)
     private val stream get()=terminalSession.stream
@@ -101,6 +107,7 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
     private var checkedMonotonic=0L
     var hudScroll: ((Int)->Unit)?=null
     var assistantScroll: ((Int)->Unit)?=null
+    var voiceScroll: ((Int)->Unit)?=null
     var menuActions: List<() -> Unit> = emptyList()
     private val modalParents=mutableListOf<Screen>()
     private val calibrationOrder=ControllerCommands.calibration.map { it.first }
@@ -207,6 +214,7 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
         mutable.update { it.copy(agents=sorted,lastChecked=now,selectedKey=it.selectedKey?.takeIf { key->fresh.any { a->a.ref.key==key } } ?: sorted.firstOrNull()?.ref?.key) }
         settings.cacheAgents(sorted,now)
         if(state.value.access!=TerminalAccess.CONTROLLER) recentOutput()
+        refreshChat()
     }
     private fun fail(e: Exception) {
         safety.connection(false);sync();afterAcquire=null
@@ -216,6 +224,7 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
         shutdown()
     }
     private fun shutdown() {
+        closeHistory()
         assistant.stop("Assistant disconnected. Reconnect using the account screen.")
         val oldTransport=sshTransport;sshTransport=null
         if(oldTransport!=null)viewModelScope.launch(Dispatchers.IO) { runCatching { oldTransport.disconnect() } }
@@ -232,6 +241,7 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
     }
     private fun stopStream() = terminalSession.close()
     private fun invalidateTarget(ref: TargetRef?) {
+        chatJob?.cancel();chatJob=null
         if(state.value.voice.target!=null && state.value.voice.target!=ref)cancelVoice(false)
         readJob?.cancel();readJob=null
         stopStream();safety.invalidate(ref);afterAcquire=null;sync()
@@ -242,10 +252,12 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
     fun open(target: AgentTarget) {
         modalParents.clear()
         invalidateTarget(target.ref)
-        mutable.update { it.copy(selected=target,selectedKey=target.ref.key,message="Read mode · your buttons stay local.",problem=ProblemCode.NONE,deliveryUncertain=false,draft="",reviewDraft=false) }
+        mutable.update { it.copy(selected=target,selectedKey=target.ref.key,message="Read mode · your buttons stay local.",problem=ProblemCode.NONE,deliveryUncertain=false,draft="",reviewDraft=false,
+            agentView=if(AgentChat.supported(target.ref))AgentView.CHAT else AgentView.TERMINAL,chat=AgentChatState()) }
         viewModelScope.launch { settings.saveLastTarget(target.ref.key) }
         transition(Screen.TERMINAL)
         if(state.value.phase==ConnectionPhase.READY) recentOutput()
+        refreshChat()
     }
     fun bindRenderer(value: TerminalRenderer?) {
         renderer=value
@@ -355,8 +367,17 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
         if(s.hud) { if(action in setOf(LogicalAction.UP,LogicalAction.DOWN))hudScroll?.invoke(if(action==LogicalAction.UP)-100 else 100);return }
         if(action==LogicalAction.INPUT) { showHints();return }
         if(action==LogicalAction.FONT_SMALL || action==LogicalAction.FONT_LARGE) { setFont(s.fontSize+if(action==LogicalAction.FONT_LARGE)1 else -1);return }
-        if(action==LogicalAction.SYSTEM) { cancelVoice(false);showSystem();return }
-        if(s.screen==Screen.VOICE) { if(action==LogicalAction.CONFIRM)useVoice();return }
+        if(action==LogicalAction.SYSTEM) { cancelVoice();showSystem();return }
+        if(s.screen==Screen.VOICE) {
+            if(action.directional)voiceScroll?.invoke(if(action in setOf(LogicalAction.UP,LogicalAction.LEFT))-120 else 120)
+            if(action==LogicalAction.CONFIRM)when(s.voice.phase) {
+                VoicePhase.REVIEW->useVoice()
+                VoicePhase.ERROR->beginVoice()
+                else->endVoice()
+            }
+            if(action==LogicalAction.COMPOSE)voiceKeyboard()
+            return
+        }
         if(ControllerCommands.forScreen(s.screen,s.mode,s.acquiring,s.reviewDraft).any { it.action==action && !it.enabled })return
         if(s.screen==Screen.ASSISTANT) {
             if(action==LogicalAction.ACTIONS) { navigate(Screen.CONVERSATION);return }
@@ -523,13 +544,17 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
         }
         assistant.clearAnswer()
     }
-    fun beginVoice() {
+    fun beginVoice() = startVoice(false)
+    fun beginTerminalVoice() = startVoice(true)
+    private fun startVoice(terminal: Boolean) {
         val s=state.value
-        if(s.screen !in setOf(Screen.HOME,Screen.TERMINAL,Screen.COMPOSE,Screen.ASSISTANT,Screen.VOICE))return
+        if(s.screen !in setOf(Screen.HOME,Screen.TERMINAL,Screen.COMPOSE,Screen.ASSISTANT,Screen.VOICE,Screen.CONTROL,Screen.ACTIONS))return
+        if(!terminal && s.screen in setOf(Screen.CONTROL,Screen.ACTIONS))return
         if(s.hostKey!=null || s.calibrating!=null || s.hud || s.acquiring || s.sending)return
-        val dictating=s.screen==Screen.COMPOSE || (s.screen==Screen.TERMINAL && s.mode==InputMode.REMOTE_KEYS) || (s.screen==Screen.VOICE && s.voice.target!=null)
+        val dictating=terminal || s.screen==Screen.COMPOSE || s.screen==Screen.TERMINAL || (s.screen==Screen.VOICE && s.voice.target!=null)
         val target=if(dictating)s.selected else null
-        if(s.screen!=Screen.VOICE)voiceParent=s.screen
+        if(dictating && target==null) { message("Choose an agent before recording a message.");return }
+        if(s.screen!=Screen.VOICE)voiceParent=if(s.screen in setOf(Screen.CONTROL,Screen.ACTIONS))Screen.TERMINAL else s.screen
         if(dictating) { safety.compose();sync() }
         voiceCancel?.invoke()
         voiceSession.begin(target?.ref,target?.let { "${it.title} · ${s.profile.session} / ${it.ref.paneId}" } ?: "Codex assistant")
@@ -547,11 +572,19 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
         if(voiceSession.update(id,phase,message,text,level))mutable.update { it.copy(voice=voiceSession.state) }
     }
     fun editVoice(value: String) { voiceSession.edit(value);mutable.update { it.copy(voice=voiceSession.state) } }
+    fun voiceKeyboard() {
+        val voice=state.value.voice
+        if(voice.target!=null && voice.target!=state.value.selected?.ref) { cancelVoice();message("Voice recipient changed. Record again.");return }
+        val text=voice.transcript.takeIf { it.isNotBlank() }
+        cancelVoice()
+        if(voice.target!=null)openCompose(text)else openAssistant(text)
+    }
     fun cancelVoice(returnToParent: Boolean=true) {
         val active=state.value.voice.phase!=VoicePhase.IDLE
         voiceCancel?.invoke();voiceSession.cancel()
         mutable.update { it.copy(voice=voiceSession.state,inputEpoch=it.inputEpoch+if(active)1 else 0,screen=if(returnToParent && it.screen==Screen.VOICE)voiceParent else it.screen) }
         if(active && returnToParent && safety.access==TerminalAccess.CONTROLLER)leaveInput()
+        else if(active && returnToParent) { if(voiceParent!=Screen.COMPOSE)safety.navigation();sync();recentOutput() }
     }
     fun useVoice() {
         val voice=state.value.voice
@@ -568,13 +601,74 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
         val next=when(state.value.speechLanguage) { ""->"ko-KR";"ko-KR"->"en-US";else->"" }
         mutable.update { it.copy(speechLanguage=next) };viewModelScope.launch { settings.saveSpeechLanguage(next) }
     }
+    private fun closeHistory() {
+        chatJob?.cancel();chatJob=null
+        val old=historyClient;historyClient=null;historyBinary=null
+        if(old!=null)viewModelScope.launch { old.close() }
+    }
+    fun setAgentView(view: AgentView) {
+        if(state.value.mode==InputMode.REMOTE_KEYS || state.value.acquiring)leaveInput()
+        chatJob?.cancel();chatJob=null
+        mutable.update { it.copy(agentView=view,chat=it.chat.copy(loading=false,error="")) }
+        if(view==AgentView.CHAT)refreshChat(true)else recentOutput()
+    }
+    fun followChat(follow: Boolean) { mutable.update { it.copy(chat=it.chat.follow(follow)) } }
+    fun latestChat() {
+        chatJob?.cancel();chatJob=null
+        mutable.update { it.copy(chat=if(it.chat.cursor!=null)AgentChatState()else it.chat.follow(true).copy(error="",loading=false)) }
+        refreshChat(true)
+    }
+    fun olderChat() {
+        val cursor=state.value.chat.page?.older ?: return
+        if(state.value.chat.loading)return
+        chatJob?.cancel();chatJob=null
+        mutable.update { it.copy(chat=AgentChatState(cursor=cursor,following=false)) }
+        refreshChat(true)
+    }
+    private fun refreshChat(force: Boolean=false) {
+        val s=state.value
+        if(!visible || s.screen!=Screen.TERMINAL || s.phase!=ConnectionPhase.READY || s.agentView!=AgentView.CHAT ||
+            s.access==TerminalAccess.CONTROLLER || s.acquiring || chatJob?.isActive==true)return
+        if(!force && (s.chat.error.isNotBlank() || s.chat.cursor!=null))return
+        val target=s.selected?.ref ?: return
+        if(!AgentChat.supported(target))return
+        val transport=sshTransport ?: return
+        val generation=safety.generation;val cursor=s.chat.cursor
+        val binary=assistant.state.value.binary
+        if(historyBinary!=null && historyBinary!=binary)closeHistory()
+        mutable.update { it.copy(chat=it.chat.copy(loading=true)) }
+        chatJob=viewModelScope.launch {
+            var opening: CodexClient?=null
+            fun current()=isActive && visible && transport===sshTransport && generation==safety.generation && state.value.selected?.ref==target && state.value.chat.cursor==cursor
+            try {
+                if(historyClient==null) {
+                    val version=transport.exec(HerdrCommandBuilder.quote(binary)+" --version")
+                    if(version.exitCode!=0 || version.stdout.trim()!="codex-cli 0.153.4")throw ContractException("Unsupported Codex history version")
+                    opening=CodexClient(transport.open(CodexClient.command(binary)))
+                    opening.initialize()
+                    if(!current())return@launch
+                    historyClient=opening;historyBinary=binary;opening=null
+                }
+                val page=AgentChat.read(historyClient!!,target,cursor)
+                if(current())mutable.update { it.copy(chat=it.chat.receive(page,System.currentTimeMillis())) }
+            } catch(e: Exception) {
+                if(e is CancellationException && e !is TimeoutCancellationException)throw e
+                if(current()) {
+                    val old=historyClient;historyClient=null;historyBinary=null
+                    old?.close()
+                    mutable.update { it.copy(chat=it.chat.copy(loading=false,error="Chat history is unavailable. Use Terminal, or retry Chat."),
+                        agentView=if(it.chat.page==null)AgentView.TERMINAL else it.agentView) }
+                }
+            } finally { opening?.close() }
+        }
+    }
     fun recentOutput() {
         val s=state.value
         if(!visible || s.screen!=Screen.TERMINAL || s.phase!=ConnectionPhase.READY || s.access==TerminalAccess.CONTROLLER || s.acquiring || readJob?.isActive==true)return
         val target=state.value.selected ?: return;val current=client ?: return
         val ref=target.ref;val g=safety.generation
         readJob=viewModelScope.launch {
-            runCatching { current.recent(ref) }.onSuccess { output ->
+            runCatching { withContext(Dispatchers.Default) { TerminalText.parse(current.recent(ref)) } }.onSuccess { output ->
                 if(g==safety.generation && client===current && state.value.selected?.ref==ref)
                     mutable.update { it.copy(reading=it.reading.receive(output,System.currentTimeMillis()),problem=if(it.problem==ProblemCode.OUTPUT)ProblemCode.NONE else it.problem) }
             }.onFailure {
@@ -584,6 +678,7 @@ class ConnectionCoordinator(application: Application) : AndroidViewModel(applica
         }
     }
     private fun scrollReading(delta: Int) {
+        if(state.value.agentView==AgentView.CHAT && state.value.mode!=InputMode.REMOTE_KEYS) { chatScroll?.invoke(delta);return }
         mutable.update {
             val target=(it.recentScroll+delta).coerceIn(0,it.recentMaxScroll)
             it.copy(readScrollTarget=target,readScrollRequest=it.readScrollRequest+1,reading=it.reading.follow(target>=it.recentMaxScroll))

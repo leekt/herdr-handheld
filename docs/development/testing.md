@@ -59,7 +59,7 @@ This opt-in test requires the already paired real host and at least two agents, 
 
 ## Results and known limits
 
-The latest results are in [PDX v0.4.0 validation](../validation/pdx-0.4.0.md) and `artifacts/validation-summary.json`; [device-validation.md](../devices/rg-rotate.md) preserves the initial v0.1.0 results. Gradle reports are in `app/build/reports/`. Lint dependency-update notices and the unused third-party Bouncy Castle TLS helper warning are distinct from app errors. The app uses SSH host-key verification and does not use that TLS trust manager.
+The latest results are in [PDX v0.4.1 validation](../validation/pdx-0.4.1.md) and `artifacts/validation-summary.json`; [device-validation.md](../devices/rg-rotate.md) preserves the initial v0.1.0 results. Gradle reports are in `app/build/reports/`. Lint dependency-update notices and the unused third-party Bouncy Castle TLS helper warning are distinct from app errors. The app uses SSH host-key verification and does not use that TLS trust manager.
 
 Real SSH authentication, agent listing, observation, controller acquisition/release and cold reconnection are verified on v0.2.0. Not yet claimed: sending task instructions or answering a real agent prompt during verification; physical printed-button calibration; HOME role selection/revocation by the user; long-session fatigue; measured physical-button feedback under 100 ms; all alternate-screen histories; all SSH formats; encrypted-key combinations; other firmware; and nonstandard terminal keyboard protocols.
 
@@ -87,3 +87,9 @@ The final paired-device run also includes `RealVoiceTest` with `runRealVoice=tru
 On the paired device, install both built APKs with `adb install -r`; do not use Gradle's connected runner. The current selected suites are `RealReadOnlyTest`, `ResponsiveLayoutTest`, `RealVoiceTest`, `RendererDeviceTest`, `RealAssistantTest`, `RealConversationTest` and `RealServicesTest`. Pass `-e runRealReadOnly true -e runRealVoice true -e runRealAssistant true` and `-w -r` to `am instrument`. The subscription tests consume actual host Codex turns. `RealConversationTest` branches/compacts a separate assistant thread and restores the original selection. `RealServicesTest` temporarily selects a missing Herdr executable, proves Codex can answer, and restores the original profile in `finally`. No suite sends instructions to existing Herdr agents.
 
 Responsive coverage constrains the real-data app to 320×440dp and 440×280dp on RG Rotate and checks all major pages' hint geometry. It does not certify an additional physical device. Microphone tests exercise listening/cancellation, not speech quality. Device logs remain private; publish sanitized counts and measured limitations.
+
+## Agent chat, colors and voice
+
+`TerminalTextTest` exercises real ANSI forms, palette and RGB colors, backgrounds, reset, bold/underline, Unicode, OSC isolation, malformed bounds and paused style updates. `AgentChatTest` and Codex peer tests check ordered typed history, opaque pagination, recipient identity and the exact read-only method allowlist. `MessageMarkdownTest` checks native formatting and inert HTML/link/image data.
+
+`RealAgentChatTest` reads two existing Codex histories, switches to colored terminal output, scrolls chat and rejects late target results. `RealVoiceTest` opens the real Android recognizer, obtains an actual terminal controller without takeover, injects a held Y through the native router, releases recording and exits with B. It also verifies Start does not return to a dead voice modal. No recognized/test message is sent to an existing agent. Spoken Korean/English accuracy still requires a person to speak and review the transcript.

@@ -12,7 +12,7 @@ class HerdrCommandBuilder(private val profile: HostProfile) {
     fun agent(ref: TargetRef): String { checkScope(ref); return command("agent", "get", ref.paneId) }
     fun observe(ref: TargetRef, cols: Int, rows: Int) = terminal(ref, false, cols, rows)
     fun control(ref: TargetRef, cols: Int, rows: Int) = terminal(ref, true, cols, rows)
-    fun recent(ref: TargetRef): String { checkScope(ref); return command("pane", "read", ref.paneId, "--source", "recent-unwrapped", "--lines", "160", "--format", "text") }
+    fun recent(ref: TargetRef): String { checkScope(ref); return command("pane", "read", ref.paneId, "--source", "recent-unwrapped", "--lines", "160", "--format", "ansi") }
     private fun terminal(ref: TargetRef, writable: Boolean, cols: Int, rows: Int): String {
         checkScope(ref)
         require(cols in 2..500 && rows in 2..300)

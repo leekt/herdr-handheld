@@ -14,6 +14,8 @@ datastore = "1.1.7"
 junit = "4.13.2"
 androidJunit = "1.2.1"
 runner = "1.6.2"
+jline = "3.30.17"
+commonmark = "0.24.0"
 
 [libraries]
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
@@ -35,6 +37,8 @@ datastore = { module = "androidx.datastore:datastore-preferences", version.ref =
 junit = { module = "junit:junit", version.ref = "junit" }
 android-junit = { module = "androidx.test.ext:junit", version.ref = "androidJunit" }
 android-runner = { module = "androidx.test:runner", version.ref = "runner" }
+jline-terminal = { module = "org.jline:jline-terminal", version.ref = "jline" }
+commonmark = { module = "org.commonmark:commonmark", version.ref = "commonmark" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

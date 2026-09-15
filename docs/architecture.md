@@ -61,7 +61,7 @@ See [product scope](product/scope.md), [device support](devices/README.md), and 
 
 SSH readiness, Herdr readiness, and assistant readiness are independent. A missing/incompatible Herdr executable or failed Herdr command suspends Herdr input and refreshes while SSH/Codex stay usable. SSH authentication and host-key errors stop the connection. Foreground reconnect never restores a controller or replays input.
 
-Default READ uses bounded text snapshots and native touch/D-pad scrolling. It creates no WebView or terminal bridge. `TerminalSession` owns the single live controller channel, frame sequence validation, rendering and debounced resizing; it is created only for an explicit input request. `DraftStore` independently debounces and serializes encrypted saves per full recipient key. `ConnectionCoordinator` retains lifecycle and input authorization policy.
+Default READ shows typed Codex history when available, with a colored native terminal snapshot view available for every agent. Both support native touch/D-pad scrolling. It creates no WebView or terminal bridge. `TerminalSession` owns the single live controller channel, frame sequence validation, rendering and debounced resizing; it is created only for an explicit input request. `DraftStore` independently debounces and serializes encrypted saves per full recipient key. `ConnectionCoordinator` retains lifecycle and input authorization policy.
 
 `ControllerCommands` supplies labels, hints, the complete map, calibration order and availability checks. Legacy persisted `INPUT`/`HOME` mappings still mean Select/Start. Select tap displays hints for three seconds; holding it opens the scrollable map. Hint legends remain one line.
 

@@ -13,9 +13,9 @@ See `artifacts/contract-probe.json` and `fixtures/herdr/0.9.0/`. Fixtures are ei
 | Capability | Baseline | App behavior |
 |---|---|---|
 | Agent list | Captured actual JSON envelope | Preserves reported status and identity |
-| Recent output | `pane read --format text` emits plain UTF-8 stdout | Displays literal text; never parses the content as a JSON wrapper |
+| Recent output | `pane read --format ansi` emits styled UTF-8 stdout | JLine parses SGR colors/attributes into native Compose spans; never a JSON wrapper |
 | Named session | Explicit `--session` on every call | Session-scoped command builder |
-| Observe | Initial full frame + ANSI frame stream | Default read mode |
+| Observe | Initial full frame + ANSI frame stream | Verified adapter; native snapshots are the product read path |
 | Two observers | Separate viewport dimensions; no underlying PTY resize | Reading does not acquire resize ownership |
 | Control | First frame follows successful acquisition | No input until first full frame is rendered |
 | Existing controller | `terminal.closed` with owner-conflict reason | Returns to native snapshot reading; no takeover |
@@ -68,3 +68,5 @@ The original transport fixture and real Herdr CLI probe are separate tests. The 
 References: [Herdr CLI](https://herdr.dev/docs/cli-reference/), [terminal bridge](https://herdr.dev/docs/persistence-remote/), [socket schema](https://herdr.dev/docs/socket-api/), [0.9.0 bridge source](https://github.com/herdrdev/herdr/blob/v0.9.0/src/client/terminal_sessions.rs), [SSHJ](https://github.com/hierynomus/sshj), [xterm security](https://xtermjs.org/docs/guides/security/).
 
 In v0.4, the measured observer adapter remains available to contract tests, but the product READ path exclusively uses native text snapshots. The renderer and control bridge start only after an explicit input request. Herdr errors no longer close an otherwise authenticated SSH/Codex connection.
+
+In v0.4.1, real `recent-unwrapped --format ansi` snapshots were checked on existing panes. They include palette (`38;5`), true-color (`38;2`, `48;2`), bold, faint, underline and reset sequences. The unchanged JLine 3.30.17 ANSI parser handles styled snapshots; xterm still handles live controller frames. Text and colors remain frozen together while browsing. Parsing is off the UI thread and bounded to 1 MiB / 16,384 spans; malformed/oversized output reports an error while retaining the last valid snapshot. Base ANSI palette entries match the existing handheld xterm palette; explicit RGB colors pass through unchanged. The desktop’s custom palette/theme is not queried or synchronized.

@@ -2,7 +2,7 @@
 
 PDX uses the user's existing Codex CLI on the configured SSH host. It opens `codex app-server --listen stdio://` on a separate SSH exec channel. No public port, new gateway, copied account token, or API-key billing is involved. This is an independent client integration, not an OpenAI product or an endorsement.
 
-Open Assistant with Y on Home, or from terminal Actions. Hold Y outside INPUT to speak to the assistant. Within INPUT or Compose, hold Y for a plain message transcript for the current agent. Release Y to finish; review the transcript, then use the normal message review to send. Keyboard input follows the same path.
+Open Assistant with Y on Home, or from terminal Actions. Hold Y on Home or Assistant to speak to the assistant. Within an agent’s CHAT, READ, INPUT or Compose screen, hold Y to dictate a message for that agent. Mic is also available by touch and in the Input/Actions menus. Release Y to finish; review the transcript, then use the normal message review to send. Keyboard input follows the same path.
 
 ## Account
 
@@ -43,3 +43,13 @@ The assistant displays the last turn's token usage and model context window when
 Wire methods/fields were checked against CLI 0.153.4's generated schema. `thread/resume` uses `excludeTurns` to avoid sending a full historical transcript back through the handheld; it does not accept the experimental `environments` field used by `thread/start` and `turn/start`. Event subscriptions are established before requests and filter thread/turn IDs. Tests exercise notifications arriving before request acknowledgements.
 
 See [v0.4 validation](../validation/pdx-0.4.0.md) for the operations exercised on the actual host and RG Rotate. Older reports remain historical evidence.
+
+## Agent chat reading (v0.4.1)
+
+Supported Codex agents open in a native chat view. This is the existing agent’s saved conversation, separate from the PDX assistant thread. Herdr’s reported agent session ID is passed to `thread/read` with `includeTurns:false`; the returned identity must match. `thread/turns/list` reads six newest turns with `itemsView:summary`, and an opaque cursor loads an earlier page. These read-only calls neither resume nor subscribe to the agent thread. No `turn/start`, fork, compaction, name change or history edit is used on an agent’s thread.
+
+This experimental history contract was checked against installed Codex CLI 0.153.4 and real sessions. Other CLI versions, non-Codex agents, missing session IDs and unavailable history use the colored Terminal view. The chat displays actual user/agent items from persisted display summaries; tool output and live choices remain in Terminal. It is not a live token stream or a complete tool transcript. History refreshes on the visible latest page without overlapping requests; scrolling pauses visible updates. Earlier pages stay still until Latest is selected. No agent chat is written to local disk. Markdown is rendered as native styled text; HTML, remote images and automatic link navigation are disabled.
+
+Chat replies and voice transcripts still pass through the existing recipient review and explicit Herdr controller acquisition. Reading chat never uses a second Codex turn to send a reply to an active agent.
+
+Contract source: [Codex App Server — read threads and page turns](https://learn.chatgpt.com/docs/app-server#read-a-stored-thread-without-resuming). Fixtures contain synthetic content following verified response shapes, not user history.

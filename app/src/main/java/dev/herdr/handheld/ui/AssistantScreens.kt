@@ -132,8 +132,11 @@ private fun CodexAccount.planelse()=plan.ifBlank { "Connected" }
 
 @Composable internal fun VoiceScreen(s: UiState,model: ConnectionCoordinator) {
     val voice=s.voice
-    SideEffect { model.menuActions=emptyList() }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(10.dp),verticalArrangement=Arrangement.spacedBy(15.dp)) {
+    val scroll=rememberScrollState()
+    val scope=rememberCoroutineScope()
+    SideEffect { model.menuActions=emptyList();model.voiceScroll={ delta -> scope.launch { scroll.scrollTo((scroll.value+delta).coerceIn(0,scroll.maxValue)) } } }
+    DisposableEffect(model) { onDispose { model.voiceScroll=null } }
+    Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(10.dp),verticalArrangement=Arrangement.spacedBy(15.dp)) {
         Text(voice.recipient,fontSize=20.sp,fontWeight=FontWeight.Bold,color=if(voice.target!=null)Amber else White)
         if(voice.phase==VoicePhase.REVIEW) {
             OutlinedTextField(voice.transcript,model::editVoice,modifier=Modifier.fillMaxWidth().heightIn(min=130.dp),textStyle=LocalTextStyle.current.copy(fontSize=20.sp,lineHeight=28.sp))

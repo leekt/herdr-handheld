@@ -1,5 +1,5 @@
 {
-  "started_at": "2026-09-15T00:03:40.109228+00:00",
+  "started_at": "2026-09-14T16:34:13.980705+00:00",
   "checks": {
     "npm_install": "passed",
     "terminal_bundle": "passed",
@@ -10,18 +10,18 @@
   "device": {
     "surface": "rg-rotate",
     "status": "passed",
-    "tests": 8,
-    "passed": 8,
+    "tests": 7,
+    "passed": 7,
     "skipped": 0,
     "failures": 0,
     "apk_matches": true,
-    "log_sha256": "04297fb51c0e5cc7cc54dd2d8aaa098bfdc63e6b7d5e55c3cb6b807246bb3aa2",
-    "captured_at": "2026-09-15T00:05:53.685197+00:00"
+    "log_sha256": "43e9cb338d96b0587bb0afd4f93d78994cf7ff8256ce0452f8a2c2b76928aa2b",
+    "captured_at": "2026-09-14T16:24:33.840999+00:00"
   },
-  "version": "0.4.1",
-  "source_sha256": "05771e0c5500ce8e03a87867f85f8127e06968e0f38a6263de42fc4d57c74beb",
+  "version": "0.4.0",
+  "source_sha256": "e915e5ae5893005eda16f1e528b1cd4ea8cb189fecb5a407773846a62231b380",
   "jvm": {
-    "tests": 55,
+    "tests": 41,
     "failures": 0,
     "errors": 0,
     "skipped": 0
@@ -38,9 +38,9 @@
   },
   "apk": {
     "name": "pdx-debug.apk",
-    "bytes": 38495290,
-    "sha256": "3a7338cd6a8a3f1bffc84bf28b26d1eb6a2113405a56f0bd9848d2a0085c85d6"
+    "bytes": 37887332,
+    "sha256": "773bb5224b0fdcc36fd068bef0c951cfb26d2602432011750a910eb13f6f92bc"
   },
-  "finished_at": "2026-09-15T00:03:54.494375+00:00",
+  "finished_at": "2026-09-14T16:34:23.575295+00:00",
   "status": "passed"
 }

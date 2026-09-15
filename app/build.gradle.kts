@@ -12,8 +12,8 @@ android {
         applicationId = "dev.herdr.handheld"
         minSdk = 31
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.4.0"
+        versionCode = 5
+        versionName = "0.4.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     // Optional maintainer signing. CI never receives signing material for untrusted PRs.
@@ -50,6 +50,9 @@ dependencies {
     implementation(libs.bouncycastle)
     implementation(libs.datastore)
     implementation(libs.slf4j.nop)
+    // Only JLine's in-memory ANSI text utilities; no native terminal or shell provider.
+    implementation(libs.jline.terminal) { exclude(group="org.jline",module="jline-native") }
+    implementation(libs.commonmark)
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
     androidTestImplementation(platform(libs.compose.bom))

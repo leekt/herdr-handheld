@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.1 — Agent chat, voice and terminal color
+
+- Read existing Codex agents as native chat messages, with Markdown formatting, earlier history pages and a reply/Mic row. Preserve the colored Terminal view for live choices and other agents.
+- Add explicit voice choices in Input, Actions and Compose, plus Mic in live INPUT. Hold Y dictates to the selected agent in either read or input mode; release finishes, review precedes sending. Late recognition callbacks cannot reopen a finished recording.
+- Preserve ANSI palette/RGB foregrounds, backgrounds and text attributes in the default native terminal reader, with touch and D-pad scrolling.
+- Keep agent history read-only and separate from the PDX assistant; retain existing package identity and pairing. See [executed validation](docs/validation/pdx-0.4.1.md).
+
 ## 0.4.0 — Conversations and simpler reading
 
 - Keep SSH/Codex available when Herdr is missing or incompatible.

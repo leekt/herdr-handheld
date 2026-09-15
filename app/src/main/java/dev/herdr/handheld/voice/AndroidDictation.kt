@@ -27,7 +27,7 @@ class AndroidDictation(private val context: Context,private val update: (Long,Vo
                 update(id,phase,message,text,null);cancel()
             }
             speech.setRecognitionListener(object: RecognitionListener {
-                override fun onReadyForSpeech(params: Bundle?) { if(current==id)update(id,VoicePhase.LISTENING,"Speak now. Release Y to finish.",null,null) }
+                override fun onReadyForSpeech(params: Bundle?) { if(current==id)update(id,VoicePhase.LISTENING,"Speak now. Release Y or choose Finish.",null,null) }
                 override fun onBeginningOfSpeech() {}
                 override fun onRmsChanged(rmsdB: Float) { if(current==id)update(id,VoicePhase.LISTENING,"",null,(rmsdB/10f).coerceIn(0f,1f)) }
                 override fun onBufferReceived(buffer: ByteArray?) {}

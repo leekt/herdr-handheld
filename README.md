@@ -19,9 +19,9 @@ No Termux, external terminal, Herdr fork, gateway, local agent, or KVM is requir
 Download the debug APK from this repository's Releases page, or build it below. Open **PDX** as a normal app.
 
 1. Use **Settings → Controller lab → Calibrate buttons** to associate the physical buttons with logical actions. The defaults follow Android button codes, not the printed labels.
-2. Configure the SSH connection below. Select a real agent with A to read it. A in READ opens a target confirmation; A then requests control; D-pad sends arrows in input mode; A sends one Enter when released; B returns to reading.
+2. Configure the SSH connection below. Select a real agent with A to read it. Supported Codex agents open as chat messages; Terminal switches to colored output. A in READ opens input options; A then requests control; D-pad sends arrows in input mode; A sends one Enter when released; B returns to reading.
 3. Use L1/R1 to change agents in read mode. X opens Actions, Y opens the native editor, Start opens System, and holding Start returns to the app home. Hold Select to see the button map.
-4. **Y on Home** opens the Codex assistant. Use your host's existing Codex sign-in from **Settings → Codex assistant**. It has saved conversations, pinned notes, branching/compaction controls, and inline proposals for review. SSH/Codex remain usable when Herdr is unavailable. Hold Y to speak; inside INPUT, holding Y dictates a message for the current agent. See [assistant setup and limits](docs/integrations/codex.md).
+4. **Y on Home** opens the Codex assistant. Use your host's existing Codex sign-in from **Settings → Codex assistant**. It has saved conversations, pinned notes, branching/compaction controls, and inline proposals for review. SSH/Codex remain usable when Herdr is unavailable. Hold Y to speak; inside an agent’s CHAT, READ, INPUT or Compose screen, holding Y dictates a message for that agent. Release Y to finish, review the transcript, then confirm the recipient and send. Touch users can use Mic. See [assistant setup and limits](docs/integrations/codex.md).
 
 | Input | Home / read | Input mode |
 |---|---|---|
@@ -29,7 +29,7 @@ Download the debug APK from this repository's Releases page, or build it below. 
 | A | Open / READ control confirmation | One Enter per complete press |
 | B | Local back | Release control, return to read |
 | X | Actions | Actions; buttons only operate the menu |
-| Y tap / hold | Home: assistant / voice assistant; READ: draft / voice assistant | Native draft / dictation review |
+| Y tap / hold | Home: assistant / voice assistant; READ: draft / agent dictation | Native draft / dictation review |
 | L1 / R1 | Previous / next agent | Disabled |
 | Select tap / hold | Hints for 3 seconds / full button map | Hints for 3 seconds / full button map |
 | L2 / R2 | Smaller / larger text | Smaller / larger text (local) |
@@ -107,4 +107,4 @@ Third-party license information is in [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES)
 Contributions for additional handhelds start with a [device report](docs/devices/README.md). See [CONTRIBUTING](CONTRIBUTING.md) for the input, privacy, and validation requirements. Project code is MIT licensed; dependency licenses are recorded separately.
 
 
-Current validation and contribution entry point: `python3 scripts/check.py`. This runs the same fresh checks as GitHub Actions and produces a sanitized report. See [v0.4 results](docs/validation/pdx-0.4.0.md), [signing/update channels](docs/development/releases.md), and the [new-device report template](docs/devices/report-template.md).
+Current validation and contribution entry point: `python3 scripts/check.py`. This runs the same fresh checks as GitHub Actions and produces a sanitized report. See [v0.4.1 results](docs/validation/pdx-0.4.1.md), [signing/update channels](docs/development/releases.md), and the [new-device report template](docs/devices/report-template.md).

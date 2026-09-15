@@ -925,6 +925,15 @@
     "licenses": []
   },
   {
+    "coordinate": "org.commonmark:commonmark:0.24.0",
+    "licenses": [
+      {
+        "name": "BSD 2-Clause",
+        "url": "https://opensource.org/licenses/BSD-2-Clause"
+      }
+    ]
+  },
+  {
     "coordinate": "org.jetbrains.kotlin:kotlin-android-extensions-runtime:1.9.22",
     "licenses": [
       {
@@ -1065,6 +1074,15 @@
       {
         "name": "The Apache Software License, Version 2.0",
         "url": "https://www.apache.org/licenses/LICENSE-2.0.txt"
+      }
+    ]
+  },
+  {
+    "coordinate": "org.jline:jline-terminal:3.30.17",
+    "licenses": [
+      {
+        "name": "The BSD License",
+        "url": "https://opensource.org/licenses/BSD-3-Clause"
       }
     ]
   },

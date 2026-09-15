@@ -20,6 +20,10 @@ Android/runtime dependencies:
   Bouncy Castle bcprov/bcutil 1.80.2 and bcpkix 1.80 — Bouncy Castle license
   (MIT-style); see licenses/Bouncy-Castle-LICENSE.txt.
   SLF4J 2.0.17 — MIT License; see licenses/SLF4J-LICENSE.txt.
+  JLine Terminal 3.30.17 — BSD 3-Clause; see licenses/JLine-LICENSE.txt.
+  Used unchanged for in-memory ANSI text styling; native terminal providers excluded.
+  CommonMark Java 0.24.0 — BSD 2-Clause; see licenses/CommonMark-LICENSE.txt.
+  Used unchanged to parse Markdown for native text; no HTML renderer or remote assets.
 
 Full primary license texts are included in licenses/. Exact resolved runtime
 coordinates and POM license metadata are in licenses/dependency-inventory.json

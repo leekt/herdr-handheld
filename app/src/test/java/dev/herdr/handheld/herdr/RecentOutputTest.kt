@@ -3,9 +3,15 @@ package dev.herdr.handheld.herdr
 import dev.herdr.handheld.ssh.*
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RecentOutputTest {
+    @Test fun requestsAnsiInTheChosenSessionAndPreservesItsBytes()=runBlocking {
+        assertTrue(HerdrCommandBuilder(profile).recent(target).endsWith("'--format' 'ansi'"))
+        val text="\u001b[38;2;137;180;250mactual color\u001b[0m\n"
+        assertEquals(text,client(text).recent(target))
+    }
     private val profile=HostProfile(id="unit",session="named")
     private val target=TargetRef("unit","named","opaque-terminal","opaque-pane","codex",null)
     private fun client(output: String)=SshHerdrClient(profile,object: SshTransport {

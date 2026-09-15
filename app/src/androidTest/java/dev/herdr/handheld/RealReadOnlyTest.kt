@@ -63,7 +63,7 @@ class RealReadOnlyTest {
             assertTrue("This test requires an already paired real host",model.state.value.hasKey)
             val targets=model.state.value.agents.take(2)
             for(target in targets) {
-                scenario.onActivity { model.open(target) }
+                scenario.onActivity { model.open(target);model.setAgentView(AgentView.TERMINAL) }
                 eventually { model.state.value.access==TerminalAccess.NONE && model.state.value.reading.updatedAt>0 }
                 scenario.onActivity { activity ->
                     fun webViews(view: android.view.View): Int = (if(view is android.webkit.WebView)1 else 0) +
@@ -73,6 +73,7 @@ class RealReadOnlyTest {
                 assertEquals(0L,model.state.value.lastFrame)
                 assertEquals(target.ref,model.state.value.selected?.ref)
                 assertEquals(InputMode.NAVIGATION,model.state.value.mode)
+                assertTrue("Styled snapshot must contain real colors",model.state.value.reading.formatted!!.spanStyles.any { it.item.color!=dev.herdr.handheld.terminal.TerminalText.foreground })
             }
             // No menu or explicit recent-output action: opening a real target must load it.
             eventually { val s=model.state.value;s.recent!=null && s.recentMaxScroll>0 && s.recentScroll==s.recentMaxScroll }

@@ -10,7 +10,9 @@ class VoiceSession {
     fun begin(target: TargetRef?,recipient: String) { state=VoiceState(state.id+1,VoicePhase.STARTING,target,recipient) }
     fun update(id: Long,phase: VoicePhase,message: String="",text: String?=null,level: Float?=null): Boolean {
         if(id!=state.id || state.phase in setOf(VoicePhase.IDLE,VoicePhase.ERROR,VoicePhase.REVIEW))return false
-        state=state.copy(phase=phase,message=message,transcript=text?.take(12000) ?: state.transcript,level=level ?: state.level);return true
+        // Providers can deliver late RMS/partial/ready callbacks after stopListening().
+        if(state.phase==VoicePhase.TRANSCRIBING && phase in setOf(VoicePhase.STARTING,VoicePhase.LISTENING,VoicePhase.PERMISSION))return false
+        state=state.copy(phase=phase,message=message.ifBlank { state.message },transcript=text?.take(12000) ?: state.transcript,level=level ?: state.level);return true
     }
     fun edit(text: String) { if(state.phase==VoicePhase.REVIEW && text.length<=12000)state=state.copy(transcript=text) }
     fun cancel() { state=VoiceState(id=state.id+1) }
